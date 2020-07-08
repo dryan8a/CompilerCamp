@@ -1,26 +1,79 @@
 Syntax:
-	a. Comment: \/\/.*\n?
-	b. Namespace: namespace
-	c. Function: method
-	d. Class: class
-	e. Variable: var
-	f. Access Modifier: (\[public\]|\[private\])
-	g. Entry Point: entrypoint
-	h. Types: (int|bool|string|void)
-	i. Open Region: \{
-	j. Close Region: \}
-	k. Semi-colon: ;
-	l. Open Parenthesis: \(
-	m. Close Parenthesis: \)
-	n. If Statement: if
-	o. While Loop: while
-	p. White Space: \s
-	q. Comparer: (==|<=|>=|<|>)
-	r. Set Variable: =
-	v. Int literal: (\(-\))?[1-9]\d*
-	w. Bool literal: (true|false)
-	x. Char literal: '\\?.'
-	y. String Literals: \".*?\"
-	z. Indentifier: [A-Za-z_]\w* 
+	1. Comment: \/\/.*\n?
+	2. Namespace: namespace
+	3. Function: method
+	4. Class: class
+	5. Variable: var
+	6. Access Modifier: (\[public\]|\[private\])
+	7. Entry Point: entrypoint
+	8. Types: (int|bool|string|char|void)
+	9. Open Region: \{
+	10. Close Region: \}
+	11. Semi-colon: ;
+	12. Member Access: \.
+	13. Open Parenthesis: \(
+	14. Close Parenthesis: \)
+	15. If Statement: if
+	16. While Loop: while
+	17. White Space: \s
+	18. Comparer: (==|!=|<=|>=|<|>)
+	19. Set Variable: =
+	20. Return: return
+	21. Break: break
+	22. Continue: continue
+	23. Null: null
+	24. New: new
+	25. Array Open Bracket: \[
+	26. Array Close Bracket: \] 
+	27. Int literal: (\(-\))?\d+
+	28. Increment/Decrement: (\+\+|--)
+	29. Math Operands: (+|-|*|/|%)
+	30. Bool literal: (true|false)
+	31. Bool operands: (&&|\|\||\^\^|&|\||\^|!)
+	32. Char literal: '\\?.'
+	33. String Literals: \".*?\"
+	34. Indentifier: [A-Za-z_]\w* 
 
-method[public] entrypoint Main()
+Example Code:
+
+//Written to try to model basic syntax
+namespace MyNamespace
+{
+	class[public] MyClass
+	{
+		var[public] int ArbitraryNum = (-)56;
+		method[public] entrypoint void Main()
+		{
+			if(BooleanOperands() && ArbitraryNum != 0)
+			{
+				var int count = 0;
+				while(true)
+				{
+					count++;
+					if(count >= 10)
+					{
+						break;
+					}
+				}	
+			}
+			var char Character = 'a';
+			var string String = "Hello There!";
+			var char[] Characters = new char[]();
+			if((5 + 4) > 10)
+			{
+				//Insert useless code
+			}
+		}
+		//This function does nothing useful
+		method[private] bool BooleanOperands()
+		{
+			var bool EqualTo = (36 == ArbitraryNum);
+			var bool LessThan = (36 < ArbitraryNum);
+			var bool LessThanEqualTo = (36 <= ArbitraryNum);
+			var bool GreaterThan = (36 > ArbitraryNum);
+			var bool GreaterThanEqualTo = (36 >= ArbitraryNum);
+			var bool ArbitraryBool = (LessThanEqualTo & !LessThan) | !(GreaterThan ^ GreaterThanEqualTo);
+			return ArbitraryBool & false;
+		}
+	}
+}
