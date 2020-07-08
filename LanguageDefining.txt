@@ -1,0 +1,26 @@
+Syntax:
+	a. Comment: \/\/.*\n?
+	b. Namespace: namespace
+	c. Function: method
+	d. Class: class
+	e. Variable: var
+	f. Access Modifier: (\[public\]|\[private\])
+	g. Entry Point: entrypoint
+	h. Types: (int|bool|string|void)
+	i. Open Region: \{
+	j. Close Region: \}
+	k. Semi-colon: ;
+	l. Open Parenthesis: \(
+	m. Close Parenthesis: \)
+	n. If Statement: if
+	o. While Loop: while
+	p. White Space: \s
+	q. Comparer: (==|<=|>=|<|>)
+	r. Set Variable: =
+	v. Int literal: (\(-\))?[1-9]\d*
+	w. Bool literal: (true|false)
+	x. Char literal: '\\?.'
+	y. String Literals: \".*?\"
+	z. Indentifier: [A-Za-z_]\w* 
+
+method[public] entrypoint Main()
