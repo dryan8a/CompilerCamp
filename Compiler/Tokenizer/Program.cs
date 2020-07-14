@@ -36,6 +36,7 @@ namespace Tokenizer
 		AssignmentMathOperand,
 		Return,
 		LoopUtilityKeyword,
+		ThisKeyword,
 		Null,
 		New,
 		Comma,
@@ -100,6 +101,7 @@ namespace Tokenizer
 				regexes.Add(new Regex("^\\s"), TokenTypes.WhiteSpace);
 				regexes.Add(new Regex("^return"), TokenTypes.Return);
 				regexes.Add(new Regex("^continue|break"), TokenTypes.LoopUtilityKeyword);
+				regexes.Add(new Regex("^this"), TokenTypes.ThisKeyword);
 				regexes.Add(new Regex("^null"), TokenTypes.Null);
 				regexes.Add(new Regex("^new"), TokenTypes.New);
 				regexes.Add(new Regex("^,"), TokenTypes.Comma);
@@ -144,7 +146,7 @@ namespace Tokenizer
     {
         static void Main(string[] args)
         {
-			string program = File.ReadAllText("BubbleSort.dyl");
+			string program = File.ReadAllText("LinkedList.dyl");
 			var tokens = Tokenizer.Tokenize(program);
 			foreach(var token in tokens)
             {
