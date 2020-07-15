@@ -15,61 +15,59 @@ namespace Tokenizer
 			if (Program.Length == 0) return null;
 			int currentLineNumber = 1;
 			(int Paren, int Curly, int Square) BracketCount = (0, 0, 0);
-			//Reminder to change dictionary into a list of tuples
-			Dictionary<Regex, TokenTypes> regexes = new Dictionary<Regex, TokenTypes>();
+			List<(Regex, TokenTypes)> regexes = new List<(Regex, TokenTypes)>()
 			{
-				regexes.Add(new Regex("^(\\/\\/.*\n?|\\/\\*(.|\n)*\\*\\/)"), TokenTypes.Comment);
-				regexes.Add(new Regex("^\"(?(?=\\\\)\\\\[ab\\\\0tnfrv\'\"]|[^\"\n\t])+\""), TokenTypes.StringLiteral);
-				regexes.Add(new Regex("^\'(?(?=\\\\)\\\\[ab\\\\0tnfrv\'\"]|[^'\n\t])\'"), TokenTypes.CharLiteral);
-				regexes.Add(new Regex("^namespace"), TokenTypes.Namespace);
-				regexes.Add(new Regex("^method"), TokenTypes.Function);
-				regexes.Add(new Regex("^class"), TokenTypes.Class);
-				regexes.Add(new Regex("^var"), TokenTypes.VariableInitialization);
-				regexes.Add(new Regex("^(\\[public\\]|\\[private\\])"), TokenTypes.AccessModifier);
-				regexes.Add(new Regex("^entrypoint"), TokenTypes.EntryPointMarker);
-				regexes.Add(new Regex("^static"), TokenTypes.StaticMarker);
-				regexes.Add(new Regex("^(int|bool|string|char|void)"), TokenTypes.Type);
-				regexes.Add(new Regex("^\\{"), TokenTypes.OpenRegion);
-				regexes.Add(new Regex("^\\}"), TokenTypes.CloseRegion);
-				regexes.Add(new Regex("^;"), TokenTypes.Semicolon);
-				regexes.Add(new Regex("^\\."), TokenTypes.MemberAccess);
-				regexes.Add(new Regex("^(==|!=|<=|>=|<|>)"), TokenTypes.Comparer);
-				regexes.Add(new Regex("^(\\+|-|\\*|/|%|&|\\||\\^)="), TokenTypes.AssignmentMathOperand);
-				regexes.Add(new Regex("^="), TokenTypes.SetVariable);
-				regexes.Add(new Regex("^(&&|\\|\\||\\^\\^|!)"), TokenTypes.LogicalOperand);
-				regexes.Add(new Regex("^(\\(-\\)|~)"), TokenTypes.UnaryMathOperand);
-				regexes.Add(new Regex("^(\\+\\+|--)"), TokenTypes.IncrementOrDecrement);
-				regexes.Add(new Regex("^(\\+|-|\\*|/|%|&|\\||\\^)"), TokenTypes.BinaryMathOperand);
-				regexes.Add(new Regex("^\\("), TokenTypes.OpenParenthesis);
-				regexes.Add(new Regex("^\\)"), TokenTypes.CloseParenthesis);
-				regexes.Add(new Regex("^if"), TokenTypes.IfStatement);
-				regexes.Add(new Regex("^else"), TokenTypes.ElseStatement);
-				regexes.Add(new Regex("^while"), TokenTypes.WhileLoop);
-				regexes.Add(new Regex("^for"), TokenTypes.ForLoop);
-				regexes.Add(new Regex("^\\s"), TokenTypes.WhiteSpace);
-				regexes.Add(new Regex("^return"), TokenTypes.Return);
-				regexes.Add(new Regex("^continue|break"), TokenTypes.LoopUtilityKeyword);
-				regexes.Add(new Regex("^this"), TokenTypes.ThisKeyword);
-				regexes.Add(new Regex("^null"), TokenTypes.Null);
-				regexes.Add(new Regex("^new"), TokenTypes.New);
-				regexes.Add(new Regex("^,"), TokenTypes.Comma);
-				regexes.Add(new Regex("^\\["), TokenTypes.ArrayOpenBracket);
-				regexes.Add(new Regex("^\\]"), TokenTypes.ArrayCloseBracket);
-				regexes.Add(new Regex("^(true|false)"), TokenTypes.BoolLiteral);
-				regexes.Add(new Regex("^\\d+"), TokenTypes.IntLiteral);
-				regexes.Add(new Regex("^[A-Za-z_]\\w*"), TokenTypes.Indentifier);
-			}
+				(new Regex("^(\\/\\/.*\n?|\\/\\*(.|\n)*\\*\\/)"), TokenTypes.Comment),
+				(new Regex("^\"(?(?=\\\\)\\\\[ab\\\\0tnfrv\'\"]|[^\"\n\t])+\""), TokenTypes.StringLiteral),
+				(new Regex("^\'(?(?=\\\\)\\\\[ab\\\\0tnfrv\'\"]|[^'\n\t])\'"), TokenTypes.CharLiteral),
+				(new Regex("^namespace"), TokenTypes.Namespace),
+				(new Regex("^method"), TokenTypes.Function),
+				(new Regex("^class"), TokenTypes.Class),
+				(new Regex("^var"), TokenTypes.VariableInitialization),
+				(new Regex("^(\\[public\\]|\\[private\\])"), TokenTypes.AccessModifier),
+				(new Regex("^entrypoint"), TokenTypes.EntryPointMarker),
+				(new Regex("^static"), TokenTypes.StaticMarker),
+				(new Regex("^(int|bool|string|char|void)"), TokenTypes.Type),
+				(new Regex("^\\{"), TokenTypes.OpenRegion),
+				(new Regex("^\\}"), TokenTypes.CloseRegion),
+				(new Regex("^;"), TokenTypes.Semicolon),
+				(new Regex("^\\."), TokenTypes.MemberAccess),
+				(new Regex("^(==|!=|<=|>=|<|>)"), TokenTypes.Comparer),
+				(new Regex("^(\\+|-|\\*|/|%|&|\\||\\^)="), TokenTypes.AssignmentMathOperand),
+				(new Regex("^="), TokenTypes.SetVariable),
+				(new Regex("^(&&|\\|\\||\\^\\^|!)"), TokenTypes.LogicalOperand),
+				(new Regex("^(\\(-\\)|~)"), TokenTypes.UnaryMathOperand),
+				(new Regex("^(\\+\\+|--)"), TokenTypes.IncrementOrDecrement),
+				(new Regex("^(\\+|-|\\*|/|%|&|\\||\\^)"), TokenTypes.BinaryMathOperand),
+				(new Regex("^\\("), TokenTypes.OpenParenthesis),
+				(new Regex("^\\)"), TokenTypes.CloseParenthesis),
+				(new Regex("^if"), TokenTypes.IfStatement),
+				(new Regex("^else"), TokenTypes.ElseStatement),
+				(new Regex("^while"), TokenTypes.WhileLoop),
+				(new Regex("^for"), TokenTypes.ForLoop),
+				(new Regex("^\\s"), TokenTypes.WhiteSpace),
+				(new Regex("^return"), TokenTypes.Return),
+				(new Regex("^continue|break"), TokenTypes.LoopUtilityKeyword),
+				(new Regex("^this"), TokenTypes.ThisKeyword),
+				(new Regex("^null"), TokenTypes.Null),
+				(new Regex("^new"), TokenTypes.New),
+				(new Regex("^,"), TokenTypes.Comma),
+				(new Regex("^\\["), TokenTypes.ArrayOpenBracket),
+				(new Regex("^\\]"), TokenTypes.ArrayCloseBracket),
+				(new Regex("^(true|false)"), TokenTypes.BoolLiteral),
+				(new Regex("^\\d+"), TokenTypes.IntLiteral),
+				(new Regex("^[A-Za-z_]\\w*"), TokenTypes.Indentifier),
+			};
 			List<Token> tokens = new List<Token>();
 			while(true)
 			{
 				bool didAdd = false;
-				foreach (var pair in regexes)
+				foreach (var (regex, tokenType) in regexes)
 				{
-					var match = pair.Key.Match(Program.ToString());
+					var match = regex.Match(Program.ToString());
 					if(match.Success)
                     {
 						var lexeme = match.Value;
-						var tokenType = pair.Value;
 						if (tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith('\n')))
 						{
 							currentLineNumber++;
