@@ -1,0 +1,31 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>netcoreapp3.1</TargetFramework>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Remove="BubbleSort.dyl" />
+    <None Remove="Example.dyl" />
+    <None Remove="LinkedList.dyl" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="BubbleSort.dyl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Example.dyl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Include="LinkedList.dyl">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Parser\Parser.csproj" />
+    <ProjectReference Include="..\Tokenizer\Tokenizer.csproj" />
+  </ItemGroup>
+
+</Project>

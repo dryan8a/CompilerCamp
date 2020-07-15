@@ -3,7 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.30225.117
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Tokenizer", "Tokenizer\Tokenizer.csproj", "{3DEF1E23-11D1-4B9A-A1E9-680B54468433}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Tokenizer", "Tokenizer\Tokenizer.csproj", "{3DEF1E23-11D1-4B9A-A1E9-680B54468433}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Parser", "Parser\Parser.csproj", "{5504834D-9787-4191-BB20-B8FBC420D183}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Compiler", "Compiler\Compiler.csproj", "{8F59F781-AE7B-4CDC-8614-DB0D98B06AEA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +19,14 @@ Global
 		{3DEF1E23-11D1-4B9A-A1E9-680B54468433}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{3DEF1E23-11D1-4B9A-A1E9-680B54468433}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{3DEF1E23-11D1-4B9A-A1E9-680B54468433}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5504834D-9787-4191-BB20-B8FBC420D183}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5504834D-9787-4191-BB20-B8FBC420D183}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5504834D-9787-4191-BB20-B8FBC420D183}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5504834D-9787-4191-BB20-B8FBC420D183}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F59F781-AE7B-4CDC-8614-DB0D98B06AEA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F59F781-AE7B-4CDC-8614-DB0D98B06AEA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F59F781-AE7B-4CDC-8614-DB0D98B06AEA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F59F781-AE7B-4CDC-8614-DB0D98B06AEA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

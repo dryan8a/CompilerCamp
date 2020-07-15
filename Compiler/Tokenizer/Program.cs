@@ -7,67 +7,15 @@ using System.Linq;
 
 namespace Tokenizer
 {
-	public enum TokenTypes
-    {
-		Comment,
-		StringLiteral,
-		CharLiteral,
-		Namespace,
-		Function,
-		Class,
-		VariableInitialization,
-		AccessModifier,
-		EntryPointMarker,
-		StaticMarker,
-		Type,
-		OpenRegion,
-		CloseRegion,
-		Semicolon,
-		MemberAccess,
-		OpenParenthesis,
-		CloseParenthesis,
-		IfStatement,
-		ElseStatement,
-		WhileLoop,
-		ForLoop,
-		WhiteSpace,
-		Comparer,
-		SetVariable,
-		AssignmentMathOperand,
-		Return,
-		LoopUtilityKeyword,
-		ThisKeyword,
-		Null,
-		New,
-		Comma,
-		ArrayOpenBracket,
-		ArrayCloseBracket,
-		BoolLiteral,
-		IntLiteral,
-		IncrementOrDecrement,
-		LogicalOperand,
-		UnaryMathOperand,
-		BinaryMathOperand,
-		Indentifier
-    }
-	public class Token
-    {
-		public readonly TokenTypes TokenType;
-		public readonly string Lexeme;
-		public Token(TokenTypes tokenType, string lexeme)
-        {
-			TokenType = tokenType;
-			Lexeme = lexeme;
-        }
-    }
 	
     public static class Tokenizer
     {
 		public static List<Token> Tokenize(ReadOnlySpan<char> Program)
-        {
-			int currentLineNumber = 1;
+		{
 			if (Program.Length == 0) return null;
-			int initialLength = Program.Length;
+			int currentLineNumber = 1;
+			(int Paren, int Curly, int Square) BracketCount = (0, 0, 0);
+			//Reminder to change dictionary into a list of tuples
 			Dictionary<Regex, TokenTypes> regexes = new Dictionary<Regex, TokenTypes>();
 			{
 				regexes.Add(new Regex("^(\\/\\/.*\n?|\\/\\*(.|\n)*\\*\\/)"), TokenTypes.Comment);
@@ -113,33 +61,61 @@ namespace Tokenizer
 			}
 			List<Token> tokens = new List<Token>();
 			while(true)
-			{ 
-				Dictionary<Match,Regex> matches = new Dictionary<Match, Regex>();
+			{
+				bool didAdd = false;
 				foreach (var pair in regexes)
 				{
 					var match = pair.Key.Match(Program.ToString());
 					if(match.Success)
                     {
-						matches.Add(match,pair.Key);
-                    }
+						var lexeme = match.Value;
+						var tokenType = pair.Value;
+						if (tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith('\n')))
+						{
+							currentLineNumber++;
+						}
+						BracketCount = AddToBracketCount(BracketCount, tokenType);
+						tokens.Add(new Token(tokenType, lexeme));
+						Program = Program.Slice(lexeme.Length);
+						didAdd = true;
+						break;
+					}
 				}
-				if (matches.Count == 0)
+				if (!didAdd)
 				{
-					if(Program.Length > 0)
-                    {
-						throw new Exception($"Unknown expression on line {currentLineNumber}");
-                    }
+					if(Program.Length > 0) throw new Exception($"Unknown expression on line {currentLineNumber}");
+					if (BracketCount.Paren != 0) throw new Exception("Unmatched Parenthesis found");
+					if (BracketCount.Curly != 0) throw new Exception("Unmatched Curly Bracket found");
+					if (BracketCount.Square != 0) throw new Exception("Unmatched Square Bracket found");
 					return tokens;
 				}
-				var lexeme = matches.Keys.ElementAt(0).Value;
-				var tokenType = regexes[matches.Values.ElementAt(0)];
-				if(tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith('\n')))
-                {
-					currentLineNumber++;
-                }
-				tokens.Add(new Token(tokenType, lexeme));
-				Program = Program.Slice(lexeme.Length);
 			}
+        }
+
+		private static (int,int,int) AddToBracketCount((int Paren,int Curly,int Square) BracketCount, TokenTypes type)
+        {
+			switch(type)
+            {
+				case TokenTypes.OpenParenthesis:
+					BracketCount.Paren++;
+					break;
+				case TokenTypes.CloseParenthesis:
+					BracketCount.Paren--;
+					break;
+				case TokenTypes.OpenRegion:
+					BracketCount.Curly++;
+					break;
+				case TokenTypes.CloseRegion:
+					BracketCount.Curly--; 
+					break;
+				case TokenTypes.ArrayOpenBracket:
+					BracketCount.Square++;
+					break;
+				case TokenTypes.ArrayCloseBracket:
+					BracketCount.Square--;
+					break;
+			}
+			return BracketCount;
         }
     }
     class Program
