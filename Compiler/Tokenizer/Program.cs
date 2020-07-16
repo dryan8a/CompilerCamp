@@ -38,7 +38,7 @@ namespace Tokenizer
 				(new Regex("^(&&|\\|\\||\\^\\^|!)"), TokenTypes.LogicalOperand),
 				(new Regex("^(\\(-\\)|~)"), TokenTypes.UnaryMathOperand),
 				(new Regex("^(\\+\\+|--)"), TokenTypes.IncrementOrDecrement),
-				(new Regex("^(\\+|-|\\*|/|%|&|\\||\\^)"), TokenTypes.BinaryMathOperand),
+				(new Regex("^(\\+|-|\\*|/|%)"), TokenTypes.BinaryMathOperand),
 				(new Regex("^\\("), TokenTypes.OpenParenthesis),
 				(new Regex("^\\)"), TokenTypes.CloseParenthesis),
 				(new Regex("^if"), TokenTypes.IfStatement),
@@ -72,6 +72,7 @@ namespace Tokenizer
 						{
 							currentLineNumber++;
 						}
+						TrimUnnecessaryTokenFromEnd(tokens);
 						BracketCount = AddToBracketCount(BracketCount, tokenType);
 						tokens.Add(new Token(tokenType, lexeme));
 						Program = Program.Slice(lexeme.Length);
@@ -114,6 +115,13 @@ namespace Tokenizer
 					break;
 			}
 			return BracketCount;
+        }
+		private static void TrimUnnecessaryTokenFromEnd(List<Token> tokens)
+        {
+			if(tokens.Count != 0 && (tokens[tokens.Count-1].TokenType == TokenTypes.Comment || (tokens[tokens.Count-1].TokenType == TokenTypes.WhiteSpace && !tokens[tokens.Count-1].Lexeme.StartsWith("\n"))))
+            {
+				tokens.RemoveAt(tokens.Count - 1);
+            }
         }
     }
     class Program

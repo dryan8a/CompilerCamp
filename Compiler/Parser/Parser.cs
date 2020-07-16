@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using Tokenizer;
 
 namespace Parser
@@ -14,12 +15,42 @@ namespace Parser
     {
         public ParseTreeNode Parent;
         public List<ParseTreeNode> Children;
+        public ParseTreeNodeType NodeType;
         public SyntaxUnit Unit;
+        public string Lexeme;
+        public TokenTypes TokenType;
+
         
-        public ParseTreeNode(SyntaxUnit unit)
+        public ParseTreeNode(ParseTreeNodeType nodeType)
         {
-            Unit = unit;
+            NodeType = nodeType;
         }
+
+        public bool SetValue(SyntaxUnit unit)
+        {
+            if (NodeType != ParseTreeNodeType.SyntaxUnit) return false;
+            Unit = unit;
+            return true;
+        }
+        public bool SetValue(string lexeme)
+        {
+            if (NodeType != ParseTreeNodeType.Lexeme) return false;
+            Lexeme = lexeme;
+            return true;
+        }
+        public bool SetValue(TokenTypes tokenType)
+        {
+            if (NodeType != ParseTreeNodeType.TokenType) return false;
+            TokenType = tokenType;
+            return true;
+        }
+
+    }
+    public enum ParseTreeNodeType
+    {
+        SyntaxUnit,
+        TokenType,
+        Lexeme,
     }
 
     public enum SyntaxUnit
@@ -30,54 +61,89 @@ namespace Parser
         Value,
         StringLiteral,
         CharLiteral,
-        NonNewlineWhiteSpace
+        AddExpression,
+        SubtractExpression,
+        MultiplyExpression,
+        DivideExpression,
+        ParethesisBoundMathExpression,
+        NegativeExpression
+        
     }
 
-    public interface IProduction
+    public class MathProduction
     {
-        static bool TryParse(ParseTreeNode parent, List<Token> tokenStream) { return true; }
-    }
-    public class NonNewlineWhiteSpace : IProduction
-    {
-        public static bool TryParse(ParseTreeNode parent, List<Token> tokenStream)
+        public static bool TryParse(List<Token> tokenStream, out ParseTreeNode node)
         {
-            if(tokenStream[0].TokenType == TokenTypes.WhiteSpace && tokenStream[0].Lexeme != "\n")
+            var token = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.BinaryMathOperand);
+            int tokenIndex = tokenStream.IndexOf(token);
+            if (token != null && (token.Lexeme == "+" || token.Lexeme == "-"))
             {
-                return true;
+                ParseTreeNode leftExpression;
+                if (TryParse(tokenStream.GetRange(0, tokenIndex), out leftExpression))
+                {
+                    ParseTreeNode rightExpression;
+                    if(TryParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - tokenIndex + 2), out rightExpression))
+                    {
+                        node = new ParseTreeNode(ParseTreeNodeType.SyntaxUnit);
+                        if (token.Lexeme == "+") node.Unit = SyntaxUnit.AddExpression;
+                        else node.Unit = SyntaxUnit.SubtractExpression;
+                        node.Children.Add(leftExpression);
+                        node.Children.Add(rightExpression);
+                        return true;
+                    }
+                }
             }
+            if (token != null && (token.Lexeme == "*"|| token.Lexeme == "/" || token.Lexeme == "%"))
+            {
+                ParseTreeNode leftExpression;
+                if (TryParse(tokenStream.GetRange(0, tokenIndex), out leftExpression))
+                {
+                    ParseTreeNode rightExpression;
+                    if (TryParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - tokenIndex + 2), out rightExpression))
+                    {
+                        node = new ParseTreeNode(ParseTreeNodeType.SyntaxUnit) { Unit = SyntaxUnit.AddExpression };
+                        node.Children.Add(leftExpression);
+                        node.Children.Add(rightExpression);
+                        return true;
+                    }
+                }
+            }
+            var openParenToken = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.OpenParenthesis);
+            var closeParenToken = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.CloseParenthesis);
+            int openParenIndex = tokenStream.IndexOf(openParenToken);
+            int closeParenIndex = tokenStream.IndexOf(closeParenToken);
+            if (openParenToken != null & closeParenToken != null && openParenIndex < closeParenIndex)
+            {
+                ParseTreeNode expression;
+                if(TryParse(tokenStream.GetRange(openParenIndex+1,closeParenIndex-openParenIndex+2), out expression))
+                {
+                    node = new ParseTreeNode(ParseTreeNodeType.SyntaxUnit) { Unit = SyntaxUnit.ParethesisBoundMathExpression };
+                    node.Children.Add(expression);
+                }
+            }
+            node = default;
             return false;
         }
-        public static void RemoveLeadingWhiteSpace(List<Token> tokenStream)
-        {
-            int spaceCount = 0;
-            while(true)
-            {
-                if(TryParse(null, tokenStream))
-                {
-                    spaceCount++;
-                    continue;
-                }
-                tokenStream.RemoveRange(0, spaceCount);
-                return;
-            }
-        }
     }
-    public class EqualsValueClause : IProduction
+
+
+
+
+    public class EqualsValueClauseProduction
     {
         public static bool TryParse(ParseTreeNode parent, List<Token> tokenStream)
-        {
-            NonNewlineWhiteSpace.RemoveLeadingWhiteSpace(tokenStream);
-            //if(tokenStream[0] == )
-        }
-    }
-    
-    public class StringLiteral : IProduction
-    {
-        public bool TryParse(ParseTreeNode parent, List<Token> tokenStream)
         {
             throw new NotImplementedException();
         }
     }
+    public class ValueProduction
+    {
+        public static bool TryParse(ParseTreeNode parent, List<Token> tokenStream)
+        {
+            throw new NotImplementedException();
+        }
+    }
+    
     //public class CompilationUnit : IProduction
     //{
     //    public bool TryParse(ParseTreeNode parent)

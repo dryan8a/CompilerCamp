@@ -1,0 +1,13 @@
+E -> E+E
+   | E-E
+   | E*E
+   | E/E
+   | E%E
+   | (E)
+   | (-)E''
+   | E''
+
+E'' -> id
+     | intLiteral
+
+a+b*c+d
