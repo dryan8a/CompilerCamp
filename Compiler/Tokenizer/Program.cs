@@ -118,7 +118,7 @@ namespace TokenizerNamespace
         }
 		private static void TrimUnnecessaryTokenFromEnd(List<Token> tokens)
         {
-			if(tokens.Count != 0 && (tokens[tokens.Count-1].TokenType == TokenTypes.Comment || (tokens[tokens.Count-1].TokenType == TokenTypes.WhiteSpace && !tokens[tokens.Count-1].Lexeme.StartsWith("\n"))))
+			if(tokens.Count != 0 && (tokens[tokens.Count-1].TokenType == TokenTypes.Comment || tokens[tokens.Count-1].TokenType == TokenTypes.WhiteSpace))
             {
 				tokens.RemoveAt(tokens.Count - 1);
             }
