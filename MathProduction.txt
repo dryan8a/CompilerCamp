@@ -4,10 +4,10 @@ E -> E+E
    | E/E
    | E%E
    | (E)
-   | (-)E''
-   | E''
+   | (-)E'
+   | E'
 
-E'' -> id
+E' -> id
      | intLiteral
 
-a+b*c+d
+

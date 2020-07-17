@@ -1,162 +1,97 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using Tokenizer;
+using TokenizerNamespace;
 
-namespace Parser
+namespace ParserNamespace
 {
     public static class Parser
     {
-
-
-    }
-
-    public class ParseTreeNode
-    {
-        public ParseTreeNode Parent;
-        public List<ParseTreeNode> Children;
-        public ParseTreeNodeType NodeType;
-        public SyntaxUnit Unit;
-        public string Lexeme;
-        public TokenTypes TokenType;
-
-        
-        public ParseTreeNode(ParseTreeNodeType nodeType)
+        public static bool MathProductionParse(List<Token> tokenStream, out ParseTreeNode node)
         {
-            NodeType = nodeType;
-        }
-
-        public bool SetValue(SyntaxUnit unit)
-        {
-            if (NodeType != ParseTreeNodeType.SyntaxUnit) return false;
-            Unit = unit;
-            return true;
-        }
-        public bool SetValue(string lexeme)
-        {
-            if (NodeType != ParseTreeNodeType.Lexeme) return false;
-            Lexeme = lexeme;
-            return true;
-        }
-        public bool SetValue(TokenTypes tokenType)
-        {
-            if (NodeType != ParseTreeNodeType.TokenType) return false;
-            TokenType = tokenType;
-            return true;
-        }
-
-    }
-    public enum ParseTreeNodeType
-    {
-        SyntaxUnit,
-        TokenType,
-        Lexeme,
-    }
-
-    public enum SyntaxUnit
-    {
-        CompilationUnit,
-        Expression,
-        EqualsValueClause,
-        Value,
-        StringLiteral,
-        CharLiteral,
-        AddExpression,
-        SubtractExpression,
-        MultiplyExpression,
-        DivideExpression,
-        ParethesisBoundMathExpression,
-        NegativeExpression
-        
-    }
-
-    public class MathProduction
-    {
-        public static bool TryParse(List<Token> tokenStream, out ParseTreeNode node)
-        {
-            var token = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.BinaryMathOperand);
+            node = default;
+            if (tokenStream == null || tokenStream.Count == 0) return false;
+            
+            var token = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.BinaryMathOperand && (a.Lexeme == "+" || a.Lexeme == "-"));
             int tokenIndex = tokenStream.IndexOf(token);
             if (token != null && (token.Lexeme == "+" || token.Lexeme == "-"))
             {
                 ParseTreeNode leftExpression;
-                if (TryParse(tokenStream.GetRange(0, tokenIndex), out leftExpression))
+                ParseTreeNode rightExpression;
+                if (MathProductionParse(tokenStream.GetRange(0, tokenIndex), out leftExpression) && MathProductionParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - (tokenIndex + 1)), out rightExpression))
                 {
-                    ParseTreeNode rightExpression;
-                    if(TryParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - tokenIndex + 2), out rightExpression))
-                    {
-                        node = new ParseTreeNode(ParseTreeNodeType.SyntaxUnit);
-                        if (token.Lexeme == "+") node.Unit = SyntaxUnit.AddExpression;
-                        else node.Unit = SyntaxUnit.SubtractExpression;
-                        node.Children.Add(leftExpression);
-                        node.Children.Add(rightExpression);
-                        return true;
-                    }
+                    node = new ParseTreeNode() {Children = new List<ParseTreeNode>() };
+                    if (token.Lexeme == "+") node.Unit = SyntaxUnit.AddExpression;
+                    else node.Unit = SyntaxUnit.SubtractExpression;
+                    node.Children.Add(leftExpression);
+                    node.Children.Add(rightExpression);
+                    return true;
                 }
             }
-            if (token != null && (token.Lexeme == "*"|| token.Lexeme == "/" || token.Lexeme == "%"))
+
+            token = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.BinaryMathOperand);
+            tokenIndex = tokenStream.IndexOf(token);
+            if (token != null && (token.Lexeme == "*" || token.Lexeme == "/" || token.Lexeme == "%"))
             {
                 ParseTreeNode leftExpression;
-                if (TryParse(tokenStream.GetRange(0, tokenIndex), out leftExpression))
+                ParseTreeNode rightExpression;
+                if (MathProductionParse(tokenStream.GetRange(0, tokenIndex), out leftExpression) && MathProductionParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - (tokenIndex + 1)), out rightExpression))
+                {                    
+                    node = new ParseTreeNode() { Children = new List<ParseTreeNode>() };
+                    if (token.Lexeme == "*") node.Unit = SyntaxUnit.MultiplyExpression;
+                    else if (token.Lexeme == "/") node.Unit = SyntaxUnit.DivideExpression;
+                    else node.Unit = SyntaxUnit.ModuloExpression;
+                    node.Children.Add(leftExpression);
+                    node.Children.Add(rightExpression);
+                    return true;              
+                }
+            }
+
+            if (tokenStream[0].TokenType == TokenTypes.OpenParenthesis)
+            {
+                var closeParenToken = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.CloseParenthesis);
+                int closeParenIndex = tokenStream.IndexOf(closeParenToken);
+                if (closeParenToken != null)
                 {
-                    ParseTreeNode rightExpression;
-                    if (TryParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - tokenIndex + 2), out rightExpression))
+                    ParseTreeNode expression;
+                    if (MathProductionParse(tokenStream.GetRange(1, closeParenIndex - 1), out expression))
                     {
-                        node = new ParseTreeNode(ParseTreeNodeType.SyntaxUnit) { Unit = SyntaxUnit.AddExpression };
-                        node.Children.Add(leftExpression);
-                        node.Children.Add(rightExpression);
+                        node = new ParseTreeNode(SyntaxUnit.ParethesisBoundMathExpression) { Children = new List<ParseTreeNode>() };
+                        node.Children.Add(expression);
                         return true;
                     }
                 }
             }
-            var openParenToken = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.OpenParenthesis);
-            var closeParenToken = tokenStream.FirstOrDefault(a => a.TokenType == TokenTypes.CloseParenthesis);
-            int openParenIndex = tokenStream.IndexOf(openParenToken);
-            int closeParenIndex = tokenStream.IndexOf(closeParenToken);
-            if (openParenToken != null & closeParenToken != null && openParenIndex < closeParenIndex)
+
+            if (tokenStream[0].TokenType == TokenTypes.UnaryMathOperand && tokenStream[0].Lexeme == "(-)")
             {
                 ParseTreeNode expression;
-                if(TryParse(tokenStream.GetRange(openParenIndex+1,closeParenIndex-openParenIndex+2), out expression))
+                if (MathProductionPrimeParse(tokenStream.GetRange(1,tokenStream.Count-1),out expression))
                 {
-                    node = new ParseTreeNode(ParseTreeNodeType.SyntaxUnit) { Unit = SyntaxUnit.ParethesisBoundMathExpression };
+                    node = new ParseTreeNode(SyntaxUnit.NegativeExpression) { Children = new List<ParseTreeNode>()};
                     node.Children.Add(expression);
+                    return true;
                 }
             }
+            ParseTreeNode expressionPrime;
+            if(MathProductionPrimeParse(tokenStream,out expressionPrime))
+            {
+                node = expressionPrime;
+                return true;
+            }
+            return false;
+        }
+        public static bool MathProductionPrimeParse(List<Token> tokenStream, out ParseTreeNode node)
+        {
             node = default;
+            if (tokenStream.Count != 1) return false;
+            if(tokenStream[0].TokenType == TokenTypes.IntLiteral || tokenStream[0].TokenType == TokenTypes.Identifier)
+            {
+                node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
+                return true;
+            }
             return false;
         }
     }
 
-
-
-
-    public class EqualsValueClauseProduction
-    {
-        public static bool TryParse(ParseTreeNode parent, List<Token> tokenStream)
-        {
-            throw new NotImplementedException();
-        }
-    }
-    public class ValueProduction
-    {
-        public static bool TryParse(ParseTreeNode parent, List<Token> tokenStream)
-        {
-            throw new NotImplementedException();
-        }
-    }
-    
-    //public class CompilationUnit : IProduction
-    //{
-    //    public bool TryParse(ParseTreeNode parent)
-    //    {
-
-    //    }
-    //}
-
-    //public class Expression : IProduction
-    //{
-    //    public bool TryParse(ParseTreeNode parent)
-    //    {
-    //        throw new NotImplementedException();
-    //    }
-    //}
 }

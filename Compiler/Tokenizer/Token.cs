@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Tokenizer
+namespace TokenizerNamespace
 {
 	public enum TokenTypes
 	{
@@ -45,7 +45,7 @@ namespace Tokenizer
 		LogicalOperand,
 		UnaryMathOperand,
 		BinaryMathOperand,
-		Indentifier
+		Identifier
 	}
 	public class Token
 	{

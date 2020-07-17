@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using System.IO;
 using System.Linq;
 
-namespace Tokenizer
+namespace TokenizerNamespace
 {
 	
     public static class Tokenizer
@@ -56,7 +56,7 @@ namespace Tokenizer
 				(new Regex("^\\]"), TokenTypes.ArrayCloseBracket),
 				(new Regex("^(true|false)"), TokenTypes.BoolLiteral),
 				(new Regex("^\\d+"), TokenTypes.IntLiteral),
-				(new Regex("^[A-Za-z_]\\w*"), TokenTypes.Indentifier),
+				(new Regex("^[A-Za-z_]\\w*"), TokenTypes.Identifier),
 			};
 			List<Token> tokens = new List<Token>();
 			while(true)
