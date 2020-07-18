@@ -4,6 +4,14 @@ using System.Text;
 
 namespace TokenizerNamespace
 {
+	public enum BracketTypes
+	{
+		None,
+		Curly,
+		Parenthesis,
+		Square,
+	}
+
 	public enum TokenTypes
 	{
 		None,

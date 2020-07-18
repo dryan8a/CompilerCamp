@@ -1,35 +1,34 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
 using TokenizerNamespace;
 
 namespace ParserNamespace
 {
     public static class Parser
     {
-        public static bool CompilationUnitProductionParse(List<Token> tokenStream, out ParseTreeNode node)
+        public static bool CompilationUnitProductionParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = new ParseTreeNode(SyntaxUnit.CompilationUnit);
             if (tokenStream == null) return false;
-            while (tokenStream.Count > 0)
+            while (tokenStream.Length > 0)
             {
                 if (!NamespaceProductionParse(ref tokenStream, out ParseTreeNode tempNode)) return false;
                 node.Children.Add(tempNode);
             }
             return true;
         }
-        public static bool NamespaceProductionParse(ref List<Token> tokenStream, out ParseTreeNode node)
+        public static bool NamespaceProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = default;
             if (tokenStream[0].TokenType != TokenTypes.Namespace || tokenStream[1].TokenType != TokenTypes.Identifier || tokenStream[2].TokenType != TokenTypes.OpenRegion) return false;
-            int rightBracketIndex = FindCorrespondingRightBracket(tokenStream, 2);
+            int rightBracketIndex = FindCorrespondingRightBracket(tokenStream, 2,BracketTypes.Curly);
+            if (rightBracketIndex < 0) return false;
             node = new ParseTreeNode(SyntaxUnit.NamespaceDeclaration);
             node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[1] });
             
-            List<Token> namespaceTokens = tokenStream.GetRange(3, rightBracketIndex - 3 < 0 ? 0 : rightBracketIndex - 3);
+            ReadOnlySpan<Token> namespaceTokens = tokenStream.Slice(3, rightBracketIndex - 3 < 0 ? 0 : rightBracketIndex - 3);
             RemoveUsedTokens(ref tokenStream, rightBracketIndex);
-            while (namespaceTokens.Count > 0)
+            while (namespaceTokens.Length > 0)
             {
                 if (!ClassProductionParse(ref namespaceTokens, out ParseTreeNode tempNode)) return false;
                 node.Children.Add(tempNode);
@@ -37,7 +36,7 @@ namespace ParserNamespace
 
             return true;
         }
-        public static bool ClassProductionParse(ref List<Token> tokenStream, out ParseTreeNode node)
+        public static bool ClassProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = default;
             if (tokenStream[0].TokenType != TokenTypes.Class) return false;
@@ -50,26 +49,80 @@ namespace ParserNamespace
             }
             if (tokenStream[LeftBracketIndex - 1].TokenType != TokenTypes.Identifier || tokenStream[LeftBracketIndex].TokenType != TokenTypes.OpenRegion) return false;
             node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[LeftBracketIndex - 1] });
-            int rightBracketIndex = FindCorrespondingRightBracket(tokenStream, LeftBracketIndex);
+            int rightBracketIndex = FindCorrespondingRightBracket(tokenStream, LeftBracketIndex,BracketTypes.Curly);
+            if (rightBracketIndex < 0) return false;
 
-            List<Token> classTokens = tokenStream.GetRange(LeftBracketIndex + 1, rightBracketIndex - (LeftBracketIndex + 1) < 0 ? 0 : rightBracketIndex - (LeftBracketIndex + 1));
+            ReadOnlySpan<Token> classTokens = tokenStream.Slice(LeftBracketIndex + 1, rightBracketIndex - (LeftBracketIndex + 1) < 0 ? 0 : rightBracketIndex - (LeftBracketIndex + 1));
             RemoveUsedTokens(ref tokenStream, rightBracketIndex);
-            while (classTokens.Count > 0)
+            while (classTokens.Length > 0)
             {
-                if (!VariableDeclarationProductionParse(ref classTokens, out ParseTreeNode tempNode,false)) return false;
+                ParseTreeNode tempNode;
+                if (!VariableDeclarationProductionParse(ref classTokens, out tempNode,false) && !MethodProductionParse(ref classTokens, out tempNode)) return false;
                 node.Children.Add(tempNode);
             }
 
             return true;
         }
-        public static int FindCorrespondingRightBracket(List<Token> tokenStream, int leftBracketIndex)
+        public static bool MethodProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
-            if (tokenStream.Count < 2) return -1;
-            int bracketCount = 1;
-            for(int i = leftBracketIndex + 1;i<tokenStream.Count;i++)
+            node = default;
+            if (tokenStream[0].TokenType != TokenTypes.Function) return false;
+            node = new ParseTreeNode(SyntaxUnit.MethodDeclaration);
+            int TypeIndex = 1;
+            if(tokenStream[TypeIndex].TokenType == TokenTypes.AccessModifier)
             {
-                if (tokenStream[i].TokenType == TokenTypes.OpenRegion) bracketCount++;
-                else if (tokenStream[i].TokenType == TokenTypes.CloseRegion) bracketCount--;
+                node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[TypeIndex] });
+                TypeIndex++;
+            }
+            if (tokenStream[TypeIndex].TokenType == TokenTypes.EntryPointMarker)
+            {
+                node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[TypeIndex] });
+                TypeIndex++;
+            }
+            if (!ReturnTypeProductionParse(tokenStream[TypeIndex], out ParseTreeNode TypeNode) || tokenStream[TypeIndex + 1].TokenType != TokenTypes.Identifier || tokenStream[TypeIndex + 2].TokenType != TokenTypes.OpenParenthesis) return false;
+            node.Children.Add(TypeNode);
+            node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[TypeIndex + 1] });
+            int rightParenIndex = FindCorrespondingRightBracket(tokenStream, TypeIndex + 2, BracketTypes.Parenthesis);
+            if (!ParameterListProductionParse(tokenStream.Slice(TypeIndex + 3, rightParenIndex - (TypeIndex + 3) < 0 ? 0 : rightParenIndex - (TypeIndex + 3)), out ParseTreeNode ParamsNode)) return false;
+            node.Children.Add(ParamsNode);
+
+            if (tokenStream[rightParenIndex + 1].TokenType != TokenTypes.OpenRegion) return false;
+            int rightBracketIndex = FindCorrespondingRightBracket(tokenStream, rightParenIndex + 1, BracketTypes.Curly);
+            if (rightBracketIndex < 0) return false;
+
+            ReadOnlySpan<Token> methodTokens = tokenStream.Slice(rightParenIndex + 2, rightBracketIndex - (rightParenIndex + 2) < 0 ? 0 : rightBracketIndex - (rightParenIndex + 2));
+            RemoveUsedTokens(ref tokenStream, rightBracketIndex);
+            while (methodTokens.Length > 0)
+            {
+                //ParseTreeNode tempNode;
+                //if () return false;
+                //node.Children.Add(tempNode);
+            }
+
+            return true; 
+        }
+
+        public static int FindCorrespondingRightBracket(ReadOnlySpan<Token> tokenStream, int leftBracketIndex, BracketTypes bracketType)
+        {
+            if (tokenStream.Length < 2) return -1;
+            int bracketCount = 1;
+            for(int i = leftBracketIndex + 1;i<tokenStream.Length;i++)
+            {
+                switch(bracketType)
+                {
+                    case BracketTypes.Curly:
+                        if (tokenStream[i].TokenType == TokenTypes.OpenRegion) bracketCount++;
+                        else if (tokenStream[i].TokenType == TokenTypes.CloseRegion) bracketCount--;
+                        break;
+                    case BracketTypes.Parenthesis:
+                        if (tokenStream[i].TokenType == TokenTypes.OpenParenthesis) bracketCount++;
+                        else if (tokenStream[i].TokenType == TokenTypes.CloseParenthesis) bracketCount--;
+                        break;
+                    case BracketTypes.Square:
+                        if (tokenStream[i].TokenType == TokenTypes.ArrayOpenBracket) bracketCount++;
+                        else if (tokenStream[i].TokenType == TokenTypes.ArrayCloseBracket) bracketCount--;
+                        break;
+                }
                 if(bracketCount == 0)
                 {
                     return i;
@@ -78,10 +131,10 @@ namespace ParserNamespace
             return -1;
         }
 
-        public static bool VariableDeclarationProductionParse(ref List<Token> tokenStream, out ParseTreeNode node, bool isInFunc)
+        public static bool VariableDeclarationProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node, bool isInFunc)
         {
             node = default;
-            if (tokenStream.Count < 4 || tokenStream[0].TokenType != TokenTypes.VariableInitialization) return false;
+            if (tokenStream.Length < 4 || tokenStream[0].TokenType != TokenTypes.VariableInitialization) return false;
             node = new ParseTreeNode(SyntaxUnit.VariableDeclaration);
             int typeIndex = 1;
             if(tokenStream[1].TokenType == TokenTypes.AccessModifier && !isInFunc)
@@ -89,32 +142,72 @@ namespace ParserNamespace
                 typeIndex = 2;
                 node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[1] });
             }
-            if (tokenStream[typeIndex].TokenType != TokenTypes.Type || tokenStream[typeIndex + 1].TokenType != TokenTypes.Identifier || tokenStream[typeIndex + 2].TokenType != TokenTypes.Semicolon) return false;
-            node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[typeIndex] });
+            ParseTreeNode typeNode;
+            if (!VariableTypeProductionParse(tokenStream[typeIndex], out typeNode) || tokenStream[typeIndex + 1].TokenType != TokenTypes.Identifier || tokenStream[typeIndex + 2].TokenType != TokenTypes.Semicolon) return false;
+            node.Children.Add(typeNode);
             node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[typeIndex+1] });
             RemoveUsedTokens(ref tokenStream, typeIndex + 2);
             return true;
         }
 
-        public static void RemoveUsedTokens(ref List<Token> tokenStream, int lastIndex)
+        public static bool ParameterListProductionParse(ReadOnlySpan<Token> tokenStream,out ParseTreeNode node)
         {
-            if (lastIndex == tokenStream.Count - 1) tokenStream = new List<Token>();
-            else tokenStream = tokenStream.GetRange(lastIndex + 1, tokenStream.Count - (lastIndex + 1));
+            node = new ParseTreeNode(SyntaxUnit.ParameterList);
+            return true;
         }
 
-        public static bool VariableAccessProductionParse(List<Token> tokenStream, out ParseTreeNode node)
+        public static bool ParameterProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = default;
-            if (tokenStream.Count == 0 || (tokenStream[0].TokenType != TokenTypes.Identifier && tokenStream[0].TokenType != TokenTypes.ThisKeyword)) return false;
-            if(tokenStream.Count == 1)
+            if (tokenStream.Length < 4 || tokenStream[0].TokenType != TokenTypes.VariableInitialization) return false;
+            node = new ParseTreeNode(SyntaxUnit.Parameter);
+            int typeIndex = 1;
+            ParseTreeNode typeNode;
+            if (!VariableTypeProductionParse(tokenStream[typeIndex], out typeNode) || tokenStream[typeIndex + 1].TokenType != TokenTypes.Identifier || (tokenStream[typeIndex + 2].TokenType != TokenTypes.Comma && tokenStream[typeIndex + 2].TokenType != TokenTypes.CloseParenthesis)) return false;
+            node.Children.Add(typeNode);
+            node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[typeIndex + 1] });
+            RemoveUsedTokens(ref tokenStream, typeIndex + 2);
+            return true;
+        }
+
+        public static bool ReturnTypeProductionParse(Token token, out ParseTreeNode node)
+        {
+            node = default;
+            if (token.TokenType != TokenTypes.Type && token.TokenType != TokenTypes.Identifier) return false;
+            node = new ParseTreeNode(SyntaxUnit.ReturnType);
+            node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = token });
+            return true;
+        }
+
+        public static bool VariableTypeProductionParse(Token token, out ParseTreeNode node)
+        {
+            node = default;
+            if ((token.TokenType != TokenTypes.Type && token.TokenType != TokenTypes.Identifier) || token.Lexeme == "void") return false;
+            node = new ParseTreeNode(SyntaxUnit.VariableType);
+            node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = token });
+            return true;
+        }
+
+        public static void RemoveUsedTokens(ref ReadOnlySpan<Token> tokenStream, int lastIndex)
+        {
+            if (lastIndex == tokenStream.Length - 1) tokenStream = new ReadOnlySpan<Token>();
+            else tokenStream = tokenStream.Slice(lastIndex + 1, tokenStream.Length - (lastIndex + 1));
+        }
+
+        //Currently cannot call functions, split into variable access and method call after creating that production
+        public static bool MemberAccessProductionParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
+        {
+            node = default;
+            if (tokenStream.Length == 0 || (tokenStream[0].TokenType != TokenTypes.Identifier && tokenStream[0].TokenType != TokenTypes.ThisKeyword)) return false;
+            if(tokenStream.Length == 1)
             {
                 node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
                 return true;
             }
             if(tokenStream[1].TokenType == TokenTypes.MemberAccess)
             {
-                if (!VariableAccessProductionParse(tokenStream.GetRange(2, tokenStream.Count - 2), out ParseTreeNode tempNode)) return false;
-                node = new ParseTreeNode(SyntaxUnit.VariableAccess);
+                if (!MemberAccessProductionParse(tokenStream.Slice(2, tokenStream.Length - 2), out ParseTreeNode tempNode)) return false;
+                node = new ParseTreeNode(SyntaxUnit.MemberAccess);
                 node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] });
                 node.Children.Add(tempNode);
                 return true;
@@ -122,19 +215,18 @@ namespace ParserNamespace
             return false;
         }
 
-        public static bool MathProductionParse(List<Token> tokenStream, out ParseTreeNode node)
+        public static bool MathProductionParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = default;
-            if (tokenStream.Count == 0) return false;
+            if (tokenStream.Length == 0) return false;
 
-            var token = FindBinaryOp(tokenStream, new string[] { "+", "-" });
-            int tokenIndex = tokenStream.IndexOf(token);
-            if (token != null && (token.Lexeme == "+" || token.Lexeme == "-"))
+            var operation = FindBinaryOp(tokenStream, new string[] { "+", "-" });
+            if (operation.Token != null)
             {
-                if (MathProductionParse(tokenStream.GetRange(0, tokenIndex), out ParseTreeNode leftExpression) && MathProductionParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - (tokenIndex + 1)), out ParseTreeNode rightExpression))
+                if (MathProductionParse(tokenStream.Slice(0, operation.Index), out ParseTreeNode leftExpression) && MathProductionParse(tokenStream.Slice(operation.Index + 1, tokenStream.Length - (operation.Index + 1)), out ParseTreeNode rightExpression))
                 {
                     node = new ParseTreeNode();
-                    if (token.Lexeme == "+") node.Unit = SyntaxUnit.AddExpression;
+                    if (operation.Token.Lexeme == "+") node.Unit = SyntaxUnit.AddExpression;
                     else node.Unit = SyntaxUnit.SubtractExpression;
                     node.Children.Add(leftExpression);
                     node.Children.Add(rightExpression);
@@ -142,15 +234,14 @@ namespace ParserNamespace
                 }
             }
 
-            token = FindBinaryOp(tokenStream, new string[] { "*", "/", "%" });
-            tokenIndex = tokenStream.IndexOf(token);
-            if (token != null)
+            operation = FindBinaryOp(tokenStream, new string[] { "*", "/", "%" });
+            if (operation.Token != null)
             {
-                if (MathProductionParse(tokenStream.GetRange(0, tokenIndex), out ParseTreeNode leftExpression) && MathProductionParse(tokenStream.GetRange(tokenIndex + 1, tokenStream.Count - (tokenIndex + 1)), out ParseTreeNode rightExpression))
+                if (MathProductionParse(tokenStream.Slice(0, operation.Index), out ParseTreeNode leftExpression) && MathProductionParse(tokenStream.Slice(operation.Index + 1, tokenStream.Length - (operation.Index + 1)), out ParseTreeNode rightExpression))
                 {
                     node = new ParseTreeNode();
-                    if (token.Lexeme == "*") node.Unit = SyntaxUnit.MultiplyExpression;
-                    else if (token.Lexeme == "/") node.Unit = SyntaxUnit.DivideExpression;
+                    if (operation.Token.Lexeme == "*") node.Unit = SyntaxUnit.MultiplyExpression;
+                    else if (operation.Token.Lexeme == "/") node.Unit = SyntaxUnit.DivideExpression;
                     else node.Unit = SyntaxUnit.ModuloExpression;
                     node.Children.Add(leftExpression);
                     node.Children.Add(rightExpression);
@@ -158,9 +249,9 @@ namespace ParserNamespace
                 }
             }
 
-            if (tokenStream[0].TokenType == TokenTypes.OpenParenthesis && tokenStream[tokenStream.Count - 1].TokenType == TokenTypes.CloseParenthesis)
+            if (tokenStream[0].TokenType == TokenTypes.OpenParenthesis && tokenStream[tokenStream.Length - 1].TokenType == TokenTypes.CloseParenthesis)
             {
-                if (MathProductionParse(tokenStream.GetRange(1, tokenStream.Count - 2), out ParseTreeNode expression))
+                if (MathProductionParse(tokenStream.Slice(1, tokenStream.Length - 2), out ParseTreeNode expression))
                 {
                     node = new ParseTreeNode(SyntaxUnit.ParethesisBoundMathExpression);
                     node.Children.Add(expression);
@@ -170,7 +261,7 @@ namespace ParserNamespace
 
             if (tokenStream[0].TokenType == TokenTypes.UnaryMathOperand && tokenStream[0].Lexeme == "(-)")
             {
-                if (MathProductionPrimeParse(tokenStream.GetRange(1, tokenStream.Count - 1), out ParseTreeNode expression))
+                if (MathProductionPrimeParse(tokenStream.Slice(1, tokenStream.Length - 1), out ParseTreeNode expression))
                 {
                     node = new ParseTreeNode(SyntaxUnit.NegativeExpression);
                     node.Children.Add(expression);
@@ -184,23 +275,24 @@ namespace ParserNamespace
             }
             return false;
         }
-        public static bool MathProductionPrimeParse(List<Token> tokenStream, out ParseTreeNode node)
+        public static bool MathProductionPrimeParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = default;
             if (tokenStream[0].TokenType == TokenTypes.IntLiteral)
             {
-                if (tokenStream.Count != 1) return false;
+                if (tokenStream.Length != 1) return false;
                 node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
                 return true;
             }
-            if (!VariableAccessProductionParse(tokenStream,out ParseTreeNode tempNode)) return false;
-            node = new ParseTreeNode(SyntaxUnit.VariableAccess);
+            if (!MemberAccessProductionParse(tokenStream,out ParseTreeNode tempNode)) return false;
+            node = new ParseTreeNode(SyntaxUnit.MemberAccess);
             node.Children.Add(tempNode);
             return true;
         }
-        private static Token FindBinaryOp(List<Token> tokenStream, string[] validLexemes)
+        private static (Token Token , int Index) FindBinaryOp(ReadOnlySpan<Token> tokenStream, string[] validLexemes)
         {
             int unmatchedLeftParens = 0;
+            int currentIndex = 0;
             foreach (var token in tokenStream)
             {
                 if (token.TokenType == TokenTypes.OpenParenthesis) unmatchedLeftParens++;
@@ -211,12 +303,17 @@ namespace ParserNamespace
                 {
                     if (token.Lexeme == lexeme)
                     {
-                        return token;
+                        return (token,currentIndex);
                     }
+                    
                 }
+                currentIndex++;
             }
-            return default;
+            return (default,-1);
         }
     
     }
+
+    
+
 }

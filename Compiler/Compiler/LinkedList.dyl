@@ -69,7 +69,7 @@ namespace MyNamespace
 
     class[public] Program
     {
-        method[public] static entrypoint void Main()
+        method[public] entrypoint void Main()
         {
             var LinkedList list = new LinkedList();
             list.AddFirst(5);

@@ -52,7 +52,12 @@ namespace ParserNamespace
         ParethesisBoundMathExpression,
         NegativeExpression,
         Token,
-        VariableAccess
+        MemberAccess,
+        Parameter,
+        ReturnType,
+        VariableType,
+        ParameterList,
+
 
     }
 }
