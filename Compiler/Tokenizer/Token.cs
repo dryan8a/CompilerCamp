@@ -6,6 +6,7 @@ namespace TokenizerNamespace
 {
 	public enum TokenTypes
 	{
+		None,
 		Comment,
 		StringLiteral,
 		CharLiteral,
@@ -15,7 +16,6 @@ namespace TokenizerNamespace
 		VariableInitialization,
 		AccessModifier,
 		EntryPointMarker,
-		StaticMarker,
 		Type,
 		OpenRegion,
 		CloseRegion,

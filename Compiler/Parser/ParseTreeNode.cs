@@ -13,10 +13,13 @@ namespace ParserNamespace
         public Token Token;
 
         public ParseTreeNode()
-        { }
+        {
+            Children = new List<ParseTreeNode>();
+        }
         public ParseTreeNode(SyntaxUnit unit)
         {
             Unit = unit;
+            Children = new List<ParseTreeNode>();
         }
 
         public bool SetValue(Token token)
@@ -32,6 +35,10 @@ namespace ParserNamespace
     {
         None,
         CompilationUnit,
+        NamespaceDeclaration,
+        ClassDecleration,
+        MethodDeclaration,
+        VariableDeclaration,
         Expression,
         EqualsValueClause,
         Value,
@@ -44,7 +51,8 @@ namespace ParserNamespace
         ModuloExpression,
         ParethesisBoundMathExpression,
         NegativeExpression,
-        Token
+        Token,
+        VariableAccess
 
     }
 }

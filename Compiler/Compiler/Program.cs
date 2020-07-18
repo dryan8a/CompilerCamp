@@ -13,7 +13,7 @@ namespace Compiler
             string program = File.ReadAllText("Example.dyl");
             var tokens = Tokenizer.Tokenize(program);
             ParseTreeNode head;
-            bool didSucceed = Parser.MathProductionParse(tokens, out head);
+            bool didSucceed = Parser.CompilationUnitProductionParse(tokens, out head);
             
         }
     }

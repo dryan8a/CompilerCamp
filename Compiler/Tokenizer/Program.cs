@@ -26,7 +26,6 @@ namespace TokenizerNamespace
 				(new Regex("^var"), TokenTypes.VariableInitialization),
 				(new Regex("^(\\[public\\]|\\[private\\])"), TokenTypes.AccessModifier),
 				(new Regex("^entrypoint"), TokenTypes.EntryPointMarker),
-				(new Regex("^static"), TokenTypes.StaticMarker),
 				(new Regex("^(int|bool|string|char|void)"), TokenTypes.Type),
 				(new Regex("^\\{"), TokenTypes.OpenRegion),
 				(new Regex("^\\}"), TokenTypes.CloseRegion),
@@ -68,15 +67,12 @@ namespace TokenizerNamespace
 					if(match.Success)
                     {
 						var lexeme = match.Value;
-						if (tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith('\n')))
-						{
-							currentLineNumber++;
-						}
-						TrimUnnecessaryTokenFromEnd(tokens);
+						if (tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith('\n'))) currentLineNumber++; 
 						BracketCount = AddToBracketCount(BracketCount, tokenType);
-						tokens.Add(new Token(tokenType, lexeme));
 						Program = Program.Slice(lexeme.Length);
 						didAdd = true;
+						if (tokenType == TokenTypes.Comment || tokenType == TokenTypes.WhiteSpace) break; //Gets rid of comments and spaces
+						tokens.Add(new Token(tokenType, lexeme));
 						break;
 					}
 				}
@@ -115,13 +111,6 @@ namespace TokenizerNamespace
 					break;
 			}
 			return BracketCount;
-        }
-		private static void TrimUnnecessaryTokenFromEnd(List<Token> tokens)
-        {
-			if(tokens.Count != 0 && (tokens[tokens.Count-1].TokenType == TokenTypes.Comment || tokens[tokens.Count-1].TokenType == TokenTypes.WhiteSpace))
-            {
-				tokens.RemoveAt(tokens.Count - 1);
-            }
         }
     }
     class Program
