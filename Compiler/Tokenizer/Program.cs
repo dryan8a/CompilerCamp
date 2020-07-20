@@ -7,7 +7,6 @@ using System.Linq;
 
 namespace TokenizerNamespace
 {
-	
     public static class Tokenizer
     {
 		public static List<Token> Tokenize(ReadOnlySpan<char> Program)
@@ -32,10 +31,10 @@ namespace TokenizerNamespace
 				(new Regex("^;"), TokenTypes.Semicolon),
 				(new Regex("^\\."), TokenTypes.MemberAccess),
 				(new Regex("^(==|!=|<=|>=|<|>)"), TokenTypes.Comparer),
-				(new Regex("^(\\+|-|\\*|/|%|&|\\||\\^)="), TokenTypes.AssignmentMathOperand),
+				(new Regex("^(\\+|-|\\*|/|%)="), TokenTypes.AssignmentMathOperand),
 				(new Regex("^="), TokenTypes.SetVariable),
 				(new Regex("^(&&|\\|\\||\\^\\^|!)"), TokenTypes.LogicalOperand),
-				(new Regex("^(\\(-\\)|~)"), TokenTypes.UnaryMathOperand),
+				(new Regex("^(\\(-\\))"), TokenTypes.UnaryMathOperand),
 				(new Regex("^(\\+\\+|--)"), TokenTypes.IncrementOrDecrement),
 				(new Regex("^(\\+|-|\\*|/|%)"), TokenTypes.BinaryMathOperand),
 				(new Regex("^\\("), TokenTypes.OpenParenthesis),
@@ -46,7 +45,7 @@ namespace TokenizerNamespace
 				(new Regex("^for"), TokenTypes.ForLoop),
 				(new Regex("^\\s"), TokenTypes.WhiteSpace),
 				(new Regex("^return"), TokenTypes.Return),
-				(new Regex("^continue|break"), TokenTypes.LoopUtilityKeyword),
+				(new Regex("^(continue|break)"), TokenTypes.LoopUtilityKeyword),
 				(new Regex("^this"), TokenTypes.ThisKeyword),
 				(new Regex("^null"), TokenTypes.Null),
 				(new Regex("^new"), TokenTypes.New),

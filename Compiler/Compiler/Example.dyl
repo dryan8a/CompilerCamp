@@ -2,9 +2,10 @@ namespace MyNamespace
 {
 	class[public] Class
 	{
-		var int Integer;
-		method[public] entrypoint void main()
+		var[public] int Integer;
+		method void main()
 		{
+			var int thingy = null;
 		}
 	}
 }
