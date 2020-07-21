@@ -26,6 +26,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Parser\Parser.csproj" />
     <ProjectReference Include="..\Tokenizer\Tokenizer.csproj" />
+    <ProjectReference Include="..\Validator\Validator.csproj" />
   </ItemGroup>
 
 </Project>

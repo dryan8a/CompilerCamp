@@ -2,6 +2,7 @@
 using System.IO;
 using TokenizerNamespace;
 using ParserNamespace;
+using ValidatorNamespace;
 using System.Collections.Generic;
 
 namespace Compiler
@@ -14,7 +15,7 @@ namespace Compiler
             var tokens = Tokenizer.Tokenize(program);
             ParseTreeNode head;
             bool didSucceed = Parser.CompilationUnitProductionParse(tokens.ToArray().AsSpan(), out head);
-            
+            Validator.Validate(head);
         }
     }
 }

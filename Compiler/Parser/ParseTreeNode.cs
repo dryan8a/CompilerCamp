@@ -39,6 +39,7 @@ namespace ParserNamespace
         ClassDecleration,
         MethodDeclaration,
         MethodBody,
+        MethodCall,
         VariableDeclaration,
         VariableInitialization,
         VariableAssignment,
@@ -79,6 +80,7 @@ namespace ParserNamespace
         VariableType,
         ParameterList,
         EmptyStatement,
-
+        ReturnStatement,
+        IfStatement,
     }
 }

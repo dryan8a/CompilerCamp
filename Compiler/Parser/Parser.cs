@@ -132,8 +132,32 @@ namespace ParserNamespace
             {
                 return true;
             }
+            if(ReturnProductionParse(ref tokenStream, out node))
+            {
+                return true;
+            }
 
             return false;
+        }
+
+        
+
+        public static bool ReturnProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
+        {
+            node = default;
+            if (tokenStream[0].TokenType != TokenTypes.Return) return false;
+            int semicolonIndex = FindNextToken(tokenStream, 1, TokenTypes.Semicolon);
+            if (semicolonIndex < 0) return false;
+            node = new ParseTreeNode(SyntaxUnit.ReturnStatement);
+            if (semicolonIndex == 1)
+            {
+                RemoveUsedTokens(ref tokenStream, semicolonIndex);
+                return true;
+            }
+            if (!ValueProductionParse(tokenStream.Slice(1, semicolonIndex - 1), out ParseTreeNode valueNode)) return false;
+            node.Children.Add(valueNode);
+            RemoveUsedTokens(ref tokenStream, semicolonIndex);
+            return true;
         }
 
         public static bool VariableAssignmentProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
@@ -141,6 +165,7 @@ namespace ParserNamespace
             node = default;
             int semicolonIndex = FindNextToken(tokenStream, 0, TokenTypes.Semicolon);
             int operatorIndex = FindNextToken(tokenStream, 0, TokenTypes.SetVariable);
+            if (operatorIndex < 0 || semicolonIndex < 0) return false;
             if (!MemberAccessProductionParse(tokenStream.Slice(0, operatorIndex), out ParseTreeNode variableNode)) return false;
             if (!ValueProductionParse(tokenStream.Slice(operatorIndex + 1, semicolonIndex - (operatorIndex + 1)), out ParseTreeNode valueNode)) return false;
             node = new ParseTreeNode(SyntaxUnit.VariableAssignment);
@@ -155,6 +180,7 @@ namespace ParserNamespace
             node = default;
             int semicolonIndex = FindNextToken(tokenStream, 0, TokenTypes.Semicolon);
             int operatorIndex = FindNextToken(tokenStream, 0, TokenTypes.AssignmentMathOperand);
+            if (semicolonIndex < 0 || operatorIndex < 0) return false;
             if (!MemberAccessProductionParse(tokenStream.Slice(0, operatorIndex), out ParseTreeNode variableNode)) return false;
             if (!MathProductionParse(tokenStream.Slice(operatorIndex + 1, semicolonIndex - (operatorIndex + 1)), out ParseTreeNode valueNode)) return false;
             SyntaxUnit unit = default;
@@ -247,7 +273,12 @@ namespace ParserNamespace
                 node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
                 return true;
             }
-            if(MemberAccessProductionParse(tokenStream, out tempNode))
+            if (FunctionCallProductionParse(tokenStream, out tempNode))
+            {
+                node = tempNode;
+                return true;
+            }
+            if (MemberAccessProductionParse(tokenStream, out tempNode))
             {
                 node = tempNode;
                 return true;
@@ -284,6 +315,44 @@ namespace ParserNamespace
             node = default;
             return false;
         }
+
+        //Cannot call functions on their own
+        public static bool FunctionCallProductionParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
+        {
+            node = default;
+            if (tokenStream.Length < 3) return false;
+            node = new ParseTreeNode(SyntaxUnit.MethodCall);
+            if (tokenStream[0].TokenType != TokenTypes.Identifier || tokenStream[1].TokenType != TokenTypes.OpenParenthesis) return false;
+            node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] });
+            int rightParenIndex = FindCorrespondingRightBracket(tokenStream, 1, BracketTypes.Parenthesis);
+            if (rightParenIndex < 0) return false;
+            var Params = new ParseTreeNode(SyntaxUnit.ParameterList);
+            if (tokenStream[2].TokenType == TokenTypes.CloseParenthesis)
+            {
+                node.Children.Add(Params);
+                return true;
+            }
+            var ParamTokens = tokenStream.Slice(2, rightParenIndex - 1);
+            while (ParamTokens.Length > 0)
+            {
+                int commaIndex = FindNextToken(ParamTokens, 0, TokenTypes.Comma);
+                ParseTreeNode tempNode;
+                if (commaIndex < 0)
+                {
+                    if (!ValueProductionParse(ParamTokens.Slice(0, ParamTokens.Length - 1), out tempNode)) return false;
+                    RemoveUsedTokens(ref ParamTokens, ParamTokens.Length - 1);
+                }
+                else
+                {
+                    if (!ValueProductionParse(ParamTokens.Slice(0, commaIndex), out tempNode)) return false;
+                    RemoveUsedTokens(ref ParamTokens, commaIndex);
+                }
+                Params.Children.Add(tempNode);
+            }
+            node.Children.Add(Params);
+            return true;
+        }
+    
 
         public static bool NewObjectProductionParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
@@ -390,7 +459,6 @@ namespace ParserNamespace
             else tokenStream = tokenStream.Slice(lastIndex + 1, tokenStream.Length - (lastIndex + 1));
         }
 
-        //Currently cannot call functions, split into variable access and method call after creating that production
         public static bool MemberAccessProductionParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = default;
@@ -407,6 +475,26 @@ namespace ParserNamespace
                 node.Children.Add(new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] });
                 node.Children.Add(tempNode);
                 return true;
+            }
+            if(tokenStream[1].TokenType == TokenTypes.OpenParenthesis)
+            {
+                int dotIndex = FindNextToken(tokenStream, 3, TokenTypes.MemberAccess);
+                if(dotIndex < 0)
+                {
+                    if (!FunctionCallProductionParse(tokenStream, out ParseTreeNode funcNode)) return false;
+                    node = new ParseTreeNode(SyntaxUnit.MemberAccess);
+                    node.Children.Add(funcNode);
+                    return true;
+                }
+                else
+                {
+                    if (!FunctionCallProductionParse(tokenStream.Slice(0,dotIndex), out ParseTreeNode funcNode)) return false;
+                    if (!MemberAccessProductionParse(tokenStream.Slice(dotIndex+1, tokenStream.Length - (dotIndex+1)), out ParseTreeNode tempNode)) return false;
+                    node = new ParseTreeNode(SyntaxUnit.MemberAccess);
+                    node.Children.Add(funcNode);
+                    node.Children.Add(tempNode);
+                    return true;
+                }
             }
             return false;
         }
