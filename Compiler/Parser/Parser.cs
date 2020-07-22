@@ -99,7 +99,7 @@ namespace ParserNamespace
         }
         public static bool BodyProductionParse(ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
-            node = new ParseTreeNode(SyntaxUnit.MethodBody);
+            node = new ParseTreeNode(SyntaxUnit.Body);
             while (tokenStream.Length > 0)
             {
                 if (!ExpressionProductionParse(ref tokenStream, out ParseTreeNode tempNode)) return false;
@@ -136,11 +136,30 @@ namespace ParserNamespace
             {
                 return true;
             }
+            if(IfProductionParse(ref tokenStream, out node))
+            {
+                return true;
+            }
 
             return false;
         }
 
-        
+        public static bool IfProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
+        {
+            node = default;
+            if (tokenStream[0].TokenType != TokenTypes.IfStatement || tokenStream[1].TokenType != TokenTypes.OpenParenthesis) return false;
+            int rightParenIndex = FindNextToken(tokenStream, 2, TokenTypes.CloseParenthesis);
+            if (rightParenIndex < 0) return false;
+            if (!BoolValueProductionParse(tokenStream.Slice(2, rightParenIndex - 2), out ParseTreeNode conditionNode) || tokenStream[rightParenIndex + 1].TokenType != TokenTypes.OpenRegion) return false;
+            node = new ParseTreeNode(SyntaxUnit.IfStatement);
+            node.Children.Add(conditionNode);
+            int closeRegionIndex = FindNextToken(tokenStream, rightParenIndex + 1, TokenTypes.CloseRegion);
+            if (closeRegionIndex < 0) return false;
+            if (!BodyProductionParse(tokenStream.Slice(rightParenIndex + 2, closeRegionIndex - (rightParenIndex + 2)), out ParseTreeNode bodyNode)) return false;
+            node.Children.Add(bodyNode);
+            RemoveUsedTokens(ref tokenStream, closeRegionIndex);
+            return true;
+        }
 
         public static bool ReturnProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {

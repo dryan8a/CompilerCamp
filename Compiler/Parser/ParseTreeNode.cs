@@ -38,7 +38,7 @@ namespace ParserNamespace
         NamespaceDeclaration,
         ClassDecleration,
         MethodDeclaration,
-        MethodBody,
+        Body,
         MethodCall,
         VariableDeclaration,
         VariableInitialization,

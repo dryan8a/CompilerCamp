@@ -13,6 +13,7 @@ namespace TokenizerNamespace
 		{
 			if (Program.Length == 0) return null;
 			int currentLineNumber = 1;
+			bool hasSeenEntrypoint = false;
 			(int Paren, int Curly, int Square) BracketCount = (0, 0, 0);
 			List<(Regex, TokenTypes)> regexes = new List<(Regex, TokenTypes)>()
 			{
@@ -66,6 +67,11 @@ namespace TokenizerNamespace
 					if(match.Success)
                     {
 						var lexeme = match.Value;
+						if(tokenType == TokenTypes.EntryPointMarker)
+                        {
+							if (hasSeenEntrypoint) throw new Exception("Only one entrypoint allowed");
+							hasSeenEntrypoint = true;
+                        }
 						if (tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith('\n'))) currentLineNumber++; 
 						BracketCount = AddToBracketCount(BracketCount, tokenType);
 						Program = Program.Slice(lexeme.Length);

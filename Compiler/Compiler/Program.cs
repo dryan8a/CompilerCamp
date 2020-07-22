@@ -14,8 +14,8 @@ namespace Compiler
             string program = File.ReadAllText("Example.dyl");
             var tokens = Tokenizer.Tokenize(program);
             ParseTreeNode head;
-            bool didSucceed = Parser.CompilationUnitProductionParse(tokens.ToArray().AsSpan(), out head);
-            Validator.Validate(head);
+            bool ParseSucceed = Parser.CompilationUnitProductionParse(tokens.ToArray().AsSpan(), out head);
+            bool ValidateSucceed = Validator.Validate(head);
         }
     }
 }
