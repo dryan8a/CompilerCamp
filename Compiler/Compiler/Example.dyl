@@ -3,7 +3,7 @@ namespace MyNamespace
 	class[public] Class
 	{
 		var[public] int Integer;
-		method entrypoint void main()
+		method[public] entrypoint void main()
 		{
 			var int thingy = Multiply(5,3);
 			if(thingy > 3)
@@ -15,5 +15,13 @@ namespace MyNamespace
 		{
 			return numOne * numTwo;
 		}		
+	}
+	class OtherClass
+	{
+		var int number;
+		method bool IsTrue()
+		{
+		}
+		
 	}
 }
