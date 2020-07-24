@@ -18,10 +18,9 @@ namespace MyNamespace
 	}
 	class OtherClass
 	{
-		var int number;
+		var[public] int number;
 		method bool IsTrue()
 		{
 		}
-		
 	}
 }
