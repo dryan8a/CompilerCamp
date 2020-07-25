@@ -6,8 +6,9 @@ namespace MyNamespace
 		method[public] entrypoint void main()
 		{
 			var int thingy = Multiply(5,3);
-			if(thingy > 3)
+			if(thingy == null)
 			{
+				thingy++;
 				return;
 			}
 		}

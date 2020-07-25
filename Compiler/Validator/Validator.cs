@@ -28,6 +28,7 @@ namespace ValidatorNamespace
             foreach(var classNode in namespaceNode.Children.FindAll(a => a.Unit == SyntaxUnit.ClassDecleration))
             {
                 string className = classNode.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme;
+                if (classSymbols.Contains(className)) throw new Exception($"{className} already exists");
                 bool classIsPublic = classNode.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.AccessModifier && a.Token.Lexeme == "[public]") != null;
                 classSymbols.Data.Add((new Object(className,"new",classIsPublic),new SymbolsTreeNode()));
                 validTypes.Add(className);
@@ -37,22 +38,26 @@ namespace ValidatorNamespace
                     if (expression.Unit == SyntaxUnit.MethodDeclaration)
                     {
                         string name = expression.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme;
+                        if (classSymbols.Data[^1].Children.Contains(name)) throw new Exception($"{name} already exists");
                         string type = expression.Children.First(a => a.Unit == SyntaxUnit.ReturnType).Children[0].Token.Lexeme;
                         bool isEntryPoint = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.EntryPointMarker) != null;
                         bool isPublic = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.AccessModifier && a.Token.Lexeme == "[public]") != null;
-                        var parameters = expression.Children.First(a => a.Unit == SyntaxUnit.ParameterList).Children;
-                        var paramTypes = new string[parameters.Count];
-                        for (int i = 0; i < parameters.Count; i++)
+                        var parametersNodes = expression.Children.First(a => a.Unit == SyntaxUnit.ParameterList).Children;
+                        var parameters = new Object[parametersNodes.Count];
+                        for (int i = 0; i < parametersNodes.Count; i++)
                         {
-                            paramTypes[i] = parameters[i].Children[0].Children[0].Token.Lexeme;
+                            var paramName = parametersNodes[i].Children[1].Token.Lexeme;
+                            if (classSymbols.Data[^1].Children.Contains(paramName)) throw new Exception($"{name} already exists");
+                            parameters[i] = new Object(paramName,parametersNodes[i].Children[0].Children[0].Token.Lexeme,false);
                         }
-                        classSymbols.Data[^1].Children.Data.Add((new MethodObject(name, type, isPublic, paramTypes, isEntryPoint),null));
-                        toVisit.Enqueue((expression.Children.Find(a => a.Unit == SyntaxUnit.Body),classIndex));
+                        classSymbols.Data[^1].Children.Data.Add((new MethodObject(name, type, isPublic, parameters, isEntryPoint),null));
+                        toVisit.Enqueue((expression,classIndex));
                         continue;
                     }
                     if(expression.Unit == SyntaxUnit.VariableDeclaration)
                     {
                         string name = expression.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme;
+                        if (classSymbols.Data[^1].Children.Contains(name)) throw new Exception($"{name} already exists");
                         string type = expression.Children.First(a => a.Unit == SyntaxUnit.VariableType).Children[0].Token.Lexeme;
                         bool isPublic = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.AccessModifier && a.Token.Lexeme == "[public]") != null;
                         classSymbols.Data[^1].Children.Data.Add((new Object(name, type, isPublic),null));
@@ -65,7 +70,7 @@ namespace ValidatorNamespace
             while(toVisit.Count > 0)
             {
                 (ParseTreeNode currentMethod, int classIndexInNode) = toVisit.Dequeue();
-                var didSucceed = CheckTypes(currentMethod, classIndex, classSymbols);
+                var didSucceed = CheckTypes(currentMethod, classIndexInNode, classSymbols);
                 if (!didSucceed) return false;
             }
 
@@ -76,8 +81,9 @@ namespace ValidatorNamespace
         public static bool CheckTypes(ParseTreeNode currentMethod, int classIndexInNode, SymbolsTreeNode classSymbols)
         {
             var scopeStack = new ScopeStack();
-            scopeStack.Push(Scope.GetScope(classSymbols.GetRelativeData(classIndexInNode)));
-            var didSucceed = CheckTypesInBody(currentMethod,scopeStack);
+            var currentMethodBody = currentMethod.Children.Find(a => a.Unit == SyntaxUnit.Body);
+            scopeStack.Push(Scope.GetScope(classSymbols.GetRelativeData(classIndexInNode,currentMethod)));
+            var didSucceed = CheckTypesInBody(currentMethodBody,scopeStack);
             if (!didSucceed) return false;
             return true;
         }
@@ -98,9 +104,23 @@ namespace ValidatorNamespace
                 }
                 if(expression.Unit == SyntaxUnit.IfStatement)
                 {
-                    //I'll write this after I fill in the functions and make sure that variable setting
-                    //var boolValue = expression.Children.First(a => a.Unit == SyntaxUnit.BoolValue);
                     if (!CheckTypesInBody(expression.Children.First(a => a.Unit == SyntaxUnit.Body), currentStack)) return false;
+                    var boolValue = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.BoolValue);
+                    if (boolValue != null)
+                    {
+                        foreach (var access in FindMemberAccess(boolValue))
+                        {
+                            if (!MatchesType(access, "bool", currentStack)) throw new Exception($"{GetFullName(access)} is not correct type");
+                        }
+                        continue;
+                    }
+                    boolValue = expression.Children.LastOrDefault(a => a.Unit == SyntaxUnit.MethodCall || a.Unit == SyntaxUnit.MemberAccess || a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier);
+                    if (boolValue != null)
+                    {
+                        if (!MatchesType(boolValue, "bool", currentStack)) throw new Exception($"{GetFullName(boolValue)} is not of type bool");
+                        continue;
+                    }
+                    throw new Exception("Condition in if statement is not of type bool");
                 }
                 if (expression.Unit == SyntaxUnit.VariableInitialization || expression.Unit == SyntaxUnit.VariableAssignment)
                 {
@@ -115,8 +135,14 @@ namespace ValidatorNamespace
 
                     if (!currentStack.ContainsKey(name)) throw new Exception($"Object {name} does not exist in this scope");
                     string variableType = currentStack.GetObject(name).Type;
-
-                    var potentialValue = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.IntValue);
+                    var potentialChildren = expression.Children.GetRange(expression.Children.IndexOf(variable) + 1, expression.Children.Count - expression.Children.IndexOf(variable) - 1);
+                    var potentialValue = potentialChildren.LastOrDefault(a => a.Unit == SyntaxUnit.MethodCall || a.Unit == SyntaxUnit.MemberAccess || a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier);
+                    if (potentialValue != null)
+                    {
+                        if (!MatchesType(potentialValue, variableType, currentStack)) throw new Exception($"{GetFullName(potentialValue)} is not of type {variableType}");
+                        continue;
+                    }
+                    potentialValue = potentialChildren.LastOrDefault(a => a.Unit == SyntaxUnit.IntValue);
                     if (variableType == "int" && potentialValue != null)
                     {
                         foreach(var access in FindMemberAccess(potentialValue))
@@ -125,50 +151,88 @@ namespace ValidatorNamespace
                         }
                         continue;
                     }
-                    if (variableType == "char" && expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.CharValue) != null)
+                    if (variableType == "char" && potentialChildren.LastOrDefault(a => a.Unit == SyntaxUnit.CharValue) != null)
                     {
                         continue;
                     }
-                    if (variableType == "string" && expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.StringValue) != null)
+                    if (variableType == "string" && potentialChildren.LastOrDefault(a => a.Unit == SyntaxUnit.StringValue) != null)
                     {
                         continue;
                     }
-                    if(expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Null) != null)
+                    if(potentialChildren.LastOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Null) != null)
                     {
                         continue;
                     }
-                    potentialValue = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.BoolValue);
+                    potentialValue = potentialChildren.LastOrDefault(a => a.Unit == SyntaxUnit.BoolValue);
                     if (variableType == "bool" && potentialValue != null)
                     {
                         foreach (var access in FindMemberAccess(potentialValue))
                         {
-                            if (!MatchesType(access, variableType,currentStack)) throw new Exception($"{GetFullName(access)} is not of type bool");
+                            if (!MatchesType(access, variableType ,currentStack)) throw new Exception($"{GetFullName(access)} is not of type bool");
                         }
                         continue;
                     }
-                    potentialValue = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.MethodCall || a.Unit == SyntaxUnit.MemberAccess || a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.MemberAccess);
-                    if(potentialValue != null)
+                    throw new Exception("");
+                    //doesn't yet support new Object() syntax yet
+                }
+                if(ParseTreeNode.IsMathEquals(expression.Unit))
+                {
+                    var variable = expression.Children[0];
+                    var type = currentStack.GetObject(GetFullName(variable)).Type;
+                    if (type != "int") throw new Exception($"{variable} is not of type int");
+                    var value = expression.Children[1];
+                    if(value.Unit == SyntaxUnit.IntValue)
                     {
-                        if (!MatchesType(potentialValue, variableType,currentStack)) throw new Exception($"{GetFullName(potentialValue)} is not of type {variableType}");
+                        foreach (var access in FindMemberAccess(value))
+                        {
+                            if (!MatchesType(access, "int", currentStack)) throw new Exception($"{GetFullName(access)} is not of type int");
+                        }
                         continue;
                     }
+                    if(value.Unit == SyntaxUnit.Token && value.Token.TokenType == TokenTypes.IntLiteral)
+                    {
+                        continue;
+                    }
+                    if (!MatchesType(value, "int", currentStack)) throw new Exception($"{GetFullName(value)} is not of type int");
+                }
+                if(expression.Unit == SyntaxUnit.Increment || expression.Unit == SyntaxUnit.Decrement)
+                {
+                    var variable = expression.Children[0];
+                    var type = currentStack.GetObject(GetFullName(variable)).Type;
+                    if (type != "int") throw new Exception($"{GetFullName(variable)} is not of type int");
                 }
             }
             currentStack.Pop();
             return true;
         }
 
-        //Write this function
         public static string GetFullName(ParseTreeNode memberAccess)
         {
-            string name = "";
-            return name;
+            if (memberAccess == null) return "";
+            if(memberAccess.Unit == SyntaxUnit.MethodCall)
+            {
+                return memberAccess.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme;
+            }
+            if(memberAccess.Unit == SyntaxUnit.Token && memberAccess.Token.TokenType == TokenTypes.Identifier)
+            {
+                return memberAccess.Token.Lexeme;
+            }
+            if(memberAccess.Unit == SyntaxUnit.MemberAccess)
+            {
+                string fullName = GetFullName(memberAccess.Children[0]);
+                if(memberAccess.Children.Count == 2)
+                {
+                    fullName += "." + GetFullName(memberAccess.Children[1]);
+                }
+                return fullName;
+            }
+            throw new Exception("GetFullName be broken yall");
         }
         private static List<ParseTreeNode> FindMemberAccess(ParseTreeNode startNode)
         {
             if (startNode == null) return new List<ParseTreeNode>();
             var accesses = new List<ParseTreeNode>();
-            if(startNode.Unit == SyntaxUnit.MemberAccess || startNode.Unit == SyntaxUnit.MethodCall || (startNode.Unit == SyntaxUnit.Token && startNode.Token.TokenType == TokenTypes.MemberAccess))
+            if(startNode.Unit == SyntaxUnit.MemberAccess || startNode.Unit == SyntaxUnit.MethodCall || (startNode.Unit == SyntaxUnit.Token && startNode.Token.TokenType == TokenTypes.Identifier))
             {
                 accesses.Add(startNode);
                 return accesses;
@@ -182,6 +246,10 @@ namespace ValidatorNamespace
         }
         private static bool MatchesType(ParseTreeNode value, string desiredType, ScopeStack scopeStack)
         {
+            if (value.Parent != null && ParseTreeNode.IsComparison(value.Parent.Unit)) desiredType = "int";
+            string type = SyntaxUnitValueToString(value.Unit);
+            if (type != "" && type != desiredType) return false;
+            if (type != "") return true;
             string fullName = GetFullName(value);
             var desiredObject = scopeStack.GetObject(fullName);
             if (desiredObject.Type != desiredType) return false;
@@ -190,11 +258,33 @@ namespace ValidatorNamespace
                 int index = 0;
                 foreach(var param in value.Children.First(a => a.Unit == SyntaxUnit.ParameterList).Children)
                 {
-                    if (!MatchesType(param, ((MethodObject)desiredObject).ParamTypes[index], scopeStack)) return false;
+                    type = SyntaxUnitValueToString(param.Unit);
+                    if (type != "" && type != ((MethodObject)desiredObject).Params[index].Type) return false;
+                    if (type != "") continue;
+                    if (!MatchesType(param, ((MethodObject)desiredObject).Params[index].Type, scopeStack)) return false;
                     index++;
                 }
             }
             return true;
+        }
+        private static string SyntaxUnitValueToString(SyntaxUnit unit)
+        {
+            switch (unit)
+            {
+                case SyntaxUnit.IntValue:
+                    return "int";
+                    
+                case SyntaxUnit.BoolValue:
+                    return "bool";
+                    
+                case SyntaxUnit.CharValue:
+                    return "char";
+                    
+                case SyntaxUnit.StringValue:
+                    return "string";          
+                default:
+                    return "";
+            }
         }
     }
 
@@ -207,19 +297,31 @@ namespace ValidatorNamespace
             Data = new List<(Object Object,SymbolsTreeNode Children)>();
         }
 
-        public List<Object> GetRelativeData(int classIndex)
+        public bool Contains(string name)
         {
-            var objects = new List<Object>();
             foreach(var datum in Data)
             {
-                objects.Add(datum.Object);
+                if (datum.Object.Name == name) return true;
             }
+            return false;
+        }
+
+        public List<Object> GetRelativeData(int classIndex, ParseTreeNode currentMethod)
+        {
+            var objects = new List<Object>();
             for (int i = 0; i < Data.Count; i++)
             {
                 if(i == classIndex)
                 {
                     foreach (var datum in Data[i].Children.Data)
                     {
+                        if(datum.Object.Name == currentMethod.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme)
+                        {
+                            foreach(var param in ((MethodObject)datum.Object).Params)
+                            {
+                                objects.Add(param);
+                            }
+                        }
                         objects.Add(datum.Object);
                     }
                     continue;
@@ -325,22 +427,22 @@ namespace ValidatorNamespace
     public class MethodObject : Object
     {
         public bool IsEntryPoint;
-        public string[] ParamTypes;
+        public Object[] Params;
 
         public MethodObject(string name, string type, bool isPublic)
         {
             Name = name;
             Type = type;
             IsPublic = isPublic;
-            ParamTypes = new string[0];
+            Params = new Object[0];
             IsEntryPoint = false;
         }
-        public MethodObject(string name, string type, bool isPublic, string[] paramTypes, bool isEntryPoint)
+        public MethodObject(string name, string type, bool isPublic, Object[] parameters, bool isEntryPoint)
         {
             Name = name;
             Type = type;
             IsPublic = isPublic;
-            ParamTypes = paramTypes;
+            Params = parameters;
             IsEntryPoint = isEntryPoint;
         }
     }

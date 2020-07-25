@@ -29,6 +29,22 @@ namespace ParserNamespace
             return true;
         }
 
+        public static bool IsComparison(SyntaxUnit unit)
+        {
+            if(unit == SyntaxUnit.LessThanComparison || unit == SyntaxUnit.LessThanEqualToComparison || unit == SyntaxUnit.EqualToComparison || unit == SyntaxUnit.GreaterThanComparison || unit == SyntaxUnit.GreaterThanEqualToComparison || unit == SyntaxUnit.NotEqualToComparison)
+            {
+                return true;
+            }
+            return false;
+        }
+        public static bool IsMathEquals(SyntaxUnit unit)
+        {
+            if(unit == SyntaxUnit.AddEqualsExpression || unit == SyntaxUnit.SubtractEqualsExpression || unit == SyntaxUnit.MultiplyEqualsExpression || unit == SyntaxUnit.DivideEqualsExpression || unit == SyntaxUnit.ModuloEqualsExpression)
+            {
+                return true;
+            }
+            return false;
+        }
     }
 
     public enum SyntaxUnit
@@ -82,5 +98,7 @@ namespace ParserNamespace
         EmptyStatement,
         ReturnStatement,
         IfStatement,
+        Increment,
+        Decrement,
     }
 }

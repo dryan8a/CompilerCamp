@@ -110,6 +110,10 @@ namespace ParserNamespace
 
         public static bool ExpressionProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
+            if (IfProductionParse(ref tokenStream, out node))
+            {
+                return true;
+            }
             if (VariableDeclarationProductionParse(ref tokenStream, out node, true))
             {
                 return true;
@@ -119,6 +123,10 @@ namespace ParserNamespace
                 return true;
             }
             if(MathAsignmentProductionParse(ref tokenStream, out node))
+            {
+                return true;
+            }
+            if(IncrementDecrementProductionParse(ref tokenStream, out node))
             {
                 return true;
             }
@@ -136,10 +144,6 @@ namespace ParserNamespace
             {
                 return true;
             }
-            if(IfProductionParse(ref tokenStream, out node))
-            {
-                return true;
-            }
 
             return false;
         }
@@ -152,7 +156,9 @@ namespace ParserNamespace
             if (rightParenIndex < 0) return false;
             if (!BoolValueProductionParse(tokenStream.Slice(2, rightParenIndex - 2), out ParseTreeNode conditionNode) || tokenStream[rightParenIndex + 1].TokenType != TokenTypes.OpenRegion) return false;
             node = new ParseTreeNode(SyntaxUnit.IfStatement);
-            node.Children.Add(conditionNode);
+            var boolValueNode = new ParseTreeNode(SyntaxUnit.BoolValue);
+            boolValueNode.Children.Add(conditionNode);
+            node.Children.Add(boolValueNode);
             int closeRegionIndex = FindNextToken(tokenStream, rightParenIndex + 1, TokenTypes.CloseRegion);
             if (closeRegionIndex < 0) return false;
             if (!BodyProductionParse(tokenStream.Slice(rightParenIndex + 2, closeRegionIndex - (rightParenIndex + 2)), out ParseTreeNode bodyNode)) return false;
@@ -194,6 +200,20 @@ namespace ParserNamespace
             return true;
         }
 
+        public static bool IncrementDecrementProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
+        {
+            node = default;
+            int semicolonIndex = FindNextToken(tokenStream, 0, TokenTypes.Semicolon);
+            int operatorIndex = FindNextToken(tokenStream, 0, TokenTypes.IncrementOrDecrement);
+            if (semicolonIndex < 0 || operatorIndex < 0 || operatorIndex + 1 != semicolonIndex) return false;
+            if (!MemberAccessProductionParse(tokenStream.Slice(0, operatorIndex), out ParseTreeNode variableNode)) return false;
+            var unit = tokenStream[operatorIndex].Lexeme == "++" ? SyntaxUnit.Increment : SyntaxUnit.Decrement;
+            node = new ParseTreeNode(unit);
+            node.Children.Add(variableNode);
+            RemoveUsedTokens(ref tokenStream, semicolonIndex);
+            return true;
+        }
+
         public static bool MathAsignmentProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
         {
             node = default;
@@ -223,7 +243,9 @@ namespace ParserNamespace
             }
             node = new ParseTreeNode(unit);
             node.Children.Add(variableNode);
-            node.Children.Add(valueNode);
+            var intValueNode = new ParseTreeNode(SyntaxUnit.IntValue);
+            intValueNode.Children.Add(valueNode);
+            node.Children.Add(intValueNode);
             RemoveUsedTokens(ref tokenStream, semicolonIndex);
             return true;
         }
@@ -583,7 +605,13 @@ namespace ParserNamespace
         {
             node = default;
             if (tokenStream.Length == 0) return false;
-            if (tokenStream[0].TokenType == TokenTypes.IntLiteral)
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.IntLiteral)
+            {
+                if (tokenStream.Length != 1) return false;
+                node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
+                return true;
+            }
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.Null)
             {
                 if (tokenStream.Length != 1) return false;
                 node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
@@ -625,7 +653,13 @@ namespace ParserNamespace
         {
             node = default;
             if (tokenStream.Length == 0) return false;
-            if (tokenStream[0].TokenType == TokenTypes.StringLiteral)
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.StringLiteral)
+            {
+                if (tokenStream.Length != 1) return false;
+                node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
+                return true;
+            }
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.Null)
             {
                 if (tokenStream.Length != 1) return false;
                 node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
@@ -641,7 +675,13 @@ namespace ParserNamespace
         {
             node = default;
             if (tokenStream.Length == 0) return false;
-            if (tokenStream[0].TokenType == TokenTypes.CharLiteral)
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.CharLiteral)
+            {
+                if (tokenStream.Length != 1) return false;
+                node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
+                return true;
+            }
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.Null)
             {
                 if (tokenStream.Length != 1) return false;
                 node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
@@ -685,6 +725,8 @@ namespace ParserNamespace
                     else if (operation.Token.Lexeme == ">=") node.Unit = SyntaxUnit.GreaterThanEqualToComparison;
                     else if (operation.Token.Lexeme == ">") node.Unit = SyntaxUnit.GreaterThanComparison;
                     else node.Unit = SyntaxUnit.NotEqualToComparison;
+                    leftExpression.Parent = node;
+                    rightExpression.Parent = node;
                     node.Children.Add(leftExpression);
                     node.Children.Add(rightExpression);
                     return true;
@@ -721,7 +763,13 @@ namespace ParserNamespace
         {
             node = default;
             if (tokenStream.Length == 0) return false;
-            if (tokenStream[0].TokenType == TokenTypes.BoolLiteral)
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.BoolLiteral)
+            {
+                if (tokenStream.Length != 1) return false;
+                node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
+                return true;
+            }
+            if (tokenStream.Length == 1 && tokenStream[0].TokenType == TokenTypes.Null)
             {
                 if (tokenStream.Length != 1) return false;
                 node = new ParseTreeNode(SyntaxUnit.Token) { Token = tokenStream[0] };
