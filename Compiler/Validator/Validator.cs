@@ -81,13 +81,12 @@ namespace ValidatorNamespace
         public static bool CheckTypes(ParseTreeNode currentMethod, int classIndexInNode, SymbolsTreeNode classSymbols)
         {
             var scopeStack = new ScopeStack();
-            var currentMethodBody = currentMethod.Children.Find(a => a.Unit == SyntaxUnit.Body);
             scopeStack.Push(Scope.GetScope(classSymbols.GetRelativeData(classIndexInNode,currentMethod)));
-            var didSucceed = CheckTypesInBody(currentMethodBody,scopeStack);
+            var didSucceed = CheckTypesInBody(currentMethod.Children.Find(a => a.Unit == SyntaxUnit.Body),currentMethod.Children.Find(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme,scopeStack,classSymbols);
             if (!didSucceed) return false;
             return true;
         }
-        private static bool CheckTypesInBody(ParseTreeNode body, ScopeStack currentStack)
+        private static bool CheckTypesInBody(ParseTreeNode body, string currentMethod, ScopeStack currentStack, SymbolsTreeNode symbols)
         {
             currentStack.Push(new Scope());
             foreach (var expression in body.Children)
@@ -97,14 +96,24 @@ namespace ValidatorNamespace
                     string name = expression.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme;
                     if (currentStack.ContainsKey(name)) throw new Exception($"Object {name} already exists in this scope");
                     string type = expression.Children.First(a => a.Unit == SyntaxUnit.VariableType).Children[0].Token.Lexeme;
-                    if (!type.Contains(type)) throw new Exception($"{type} is not a valid type");
+                    if (!symbols.Contains(type) && !IsBuiltInType(type)) throw new Exception($"{type} is not a valid type");
                     bool isPublic = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.AccessModifier && a.Token.Lexeme == "[public]") != null;
                     var newVar = new Object(name, type, isPublic);
                     currentStack.AddToScope(newVar.Name, newVar);
                 }
-                if(expression.Unit == SyntaxUnit.IfStatement)
+                if(expression.Unit == SyntaxUnit.ReturnStatement)
                 {
-                    if (!CheckTypesInBody(expression.Children.First(a => a.Unit == SyntaxUnit.Body), currentStack)) return false;
+                    var methodObject = currentStack.GetObject(currentMethod);
+                    if(expression.Children.Count == 0)
+                    {
+                        if (methodObject.Type == "void") continue;
+                        throw new Exception($"Must return object of type {methodObject.Type}");
+                    }
+                    if(!MatchesType(expression.Children[0],methodObject.Type,currentStack)) throw new Exception($"Must return object of type {methodObject.Type}");
+                }
+                if (expression.Unit == SyntaxUnit.IfStatement || expression.Unit == SyntaxUnit.WhileLoop)
+                {
+                    if (!CheckTypesInBody(expression, currentMethod, currentStack,symbols)) return false;
                     var boolValue = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.BoolValue);
                     if (boolValue != null)
                     {
@@ -172,8 +181,15 @@ namespace ValidatorNamespace
                         }
                         continue;
                     }
+                    potentialValue = potentialChildren.LastOrDefault(a => a.Unit == SyntaxUnit.NewObject);
+                    if(potentialValue != null)
+                    {
+                        var newType = potentialValue.Children[0].Token.Lexeme;
+                        if (newType != variableType) throw new Exception($"Cannot implicitely cast {newType} to {variableType}");
+                        //Add all the public members of the object to the scope stack
+                        continue;
+                    }
                     throw new Exception("");
-                    //doesn't yet support new Object() syntax yet
                 }
                 if(ParseTreeNode.IsMathEquals(expression.Unit))
                 {
@@ -195,7 +211,7 @@ namespace ValidatorNamespace
                     }
                     if (!MatchesType(value, "int", currentStack)) throw new Exception($"{GetFullName(value)} is not of type int");
                 }
-                if(expression.Unit == SyntaxUnit.Increment || expression.Unit == SyntaxUnit.Decrement)
+                if (expression.Unit == SyntaxUnit.Increment || expression.Unit == SyntaxUnit.Decrement)
                 {
                     var variable = expression.Children[0];
                     var type = currentStack.GetObject(GetFullName(variable)).Type;
@@ -206,9 +222,14 @@ namespace ValidatorNamespace
             return true;
         }
 
+        private static bool IsBuiltInType(string type)
+        {
+            return type == "int" || type == "char" || type == "string" || type == "bool";
+        }
         public static string GetFullName(ParseTreeNode memberAccess)
         {
             if (memberAccess == null) return "";
+            
             if(memberAccess.Unit == SyntaxUnit.MethodCall)
             {
                 return memberAccess.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme;
@@ -326,13 +347,13 @@ namespace ValidatorNamespace
                     }
                     continue;
                 }
-                foreach(var datum in Data[i].Children.Data)
-                {
-                    var temp = datum.Object;
-                    if (!temp.IsPublic) continue;
-                    temp.Name = $"{Data[i].Object.Name}.{temp.Name}";
-                    objects.Add(temp);
-                }
+                //foreach(var datum in Data[i].Children.Data)
+                //{
+                //    var temp = datum.Object.GetCopy();
+                //    if (!temp.IsPublic) continue;
+                //    temp.Name = $"{Data[i].Object.Name}.{temp.Name}";
+                //    objects.Add(temp);
+                //}
             }
             return objects;
         }
@@ -421,6 +442,11 @@ namespace ValidatorNamespace
             Name = name;
             Type = type;
             IsPublic = isPublic;
+        }
+
+        public Object GetCopy()
+        {
+            return new Object(Name, Type, IsPublic);
         }
     }
 

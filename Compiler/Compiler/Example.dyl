@@ -11,6 +11,7 @@ namespace MyNamespace
 				thingy++;
 				return;
 			}
+			var OtherClass other = new OtherClass();
 		}
 		method int Multiply(var int numOne, var int numTwo)
 		{
@@ -22,6 +23,7 @@ namespace MyNamespace
 		var[public] int number;
 		method bool IsTrue()
 		{
+			return true;
 		}
 	}
 }

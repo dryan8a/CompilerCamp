@@ -100,5 +100,6 @@ namespace ParserNamespace
         IfStatement,
         Increment,
         Decrement,
+        WhileLoop,
     }
 }

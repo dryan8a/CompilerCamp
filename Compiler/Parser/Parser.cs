@@ -114,6 +114,10 @@ namespace ParserNamespace
             {
                 return true;
             }
+            if(WhileProductionParse(ref tokenStream, out node))
+            {
+                return true;
+            }
             if (VariableDeclarationProductionParse(ref tokenStream, out node, true))
             {
                 return true;
@@ -156,6 +160,24 @@ namespace ParserNamespace
             if (rightParenIndex < 0) return false;
             if (!BoolValueProductionParse(tokenStream.Slice(2, rightParenIndex - 2), out ParseTreeNode conditionNode) || tokenStream[rightParenIndex + 1].TokenType != TokenTypes.OpenRegion) return false;
             node = new ParseTreeNode(SyntaxUnit.IfStatement);
+            var boolValueNode = new ParseTreeNode(SyntaxUnit.BoolValue);
+            boolValueNode.Children.Add(conditionNode);
+            node.Children.Add(boolValueNode);
+            int closeRegionIndex = FindNextToken(tokenStream, rightParenIndex + 1, TokenTypes.CloseRegion);
+            if (closeRegionIndex < 0) return false;
+            if (!BodyProductionParse(tokenStream.Slice(rightParenIndex + 2, closeRegionIndex - (rightParenIndex + 2)), out ParseTreeNode bodyNode)) return false;
+            node.Children.Add(bodyNode);
+            RemoveUsedTokens(ref tokenStream, closeRegionIndex);
+            return true;
+        }
+        public static bool WhileProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)
+        {
+            node = default;
+            if (tokenStream[0].TokenType != TokenTypes.WhileLoop || tokenStream[1].TokenType != TokenTypes.OpenParenthesis) return false;
+            int rightParenIndex = FindNextToken(tokenStream, 2, TokenTypes.CloseParenthesis);
+            if (rightParenIndex < 0) return false;
+            if (!BoolValueProductionParse(tokenStream.Slice(2, rightParenIndex - 2), out ParseTreeNode conditionNode) || tokenStream[rightParenIndex + 1].TokenType != TokenTypes.OpenRegion) return false;
+            node = new ParseTreeNode(SyntaxUnit.WhileLoop);
             var boolValueNode = new ParseTreeNode(SyntaxUnit.BoolValue);
             boolValueNode.Children.Add(conditionNode);
             node.Children.Add(boolValueNode);
@@ -417,7 +439,7 @@ namespace ParserNamespace
                 ParseTreeNode tempNode;
                 if (commaIndex < 0)
                 {
-                    if (!ValueProductionParse(ParamTokens.Slice(0,ParamTokens.Length - 1),out tempNode)) return false;
+                    if (!ValueProductionParse(ParamTokens.Slice(0, ParamTokens.Length - 1), out tempNode)) return false;
                     RemoveUsedTokens(ref ParamTokens, ParamTokens.Length - 1);
                 }
                 else

@@ -55,13 +55,15 @@ namespace MyNamespace
         method[public] bool Contains(var int Value)
         {
             var Node currentNode = Head;
-            for(var int i = 0;i<Count;i++)
+            int i = 0;
+            while(i<Count)
             {
                 if(curretNode.Value == Value)
                 {
                     return true;
                 }
                 currentNode = currentNode.Next;
+                i++;
             }
             return false;
         }
