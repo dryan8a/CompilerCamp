@@ -134,7 +134,7 @@ namespace ValidatorNamespace
                 if (expression.Unit == SyntaxUnit.VariableInitialization || expression.Unit == SyntaxUnit.VariableAssignment)
                 {
                     string name = "";
-                    var variable = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier);
+                    var variable = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.MemberAccess || (a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier));
                     if(variable == null)
                     {
                         variable = expression.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.MemberAccess);
@@ -186,10 +186,26 @@ namespace ValidatorNamespace
                     {
                         var newType = potentialValue.Children[0].Token.Lexeme;
                         if (newType != variableType) throw new Exception($"Cannot implicitely cast {newType} to {variableType}");
-                        //Add all the public members of the object to the scope stack
+
+                        foreach(var symbol in symbols.Data.First(a => a.Object.Name == newType).Children.Data)
+                        {
+                            if (!symbol.Object.IsPublic) continue;
+                            Object tempObject;
+                            if(symbol.Object.GetType() == typeof(MethodObject))
+                            {
+                                tempObject = ((MethodObject)symbol.Object).GetMethodCopy();
+                            }
+                            else
+                            {
+                                tempObject = symbol.Object.GetCopy();
+                            }
+                            tempObject.Name = name + "." + tempObject.Name;
+                            currentStack.AddToScope(tempObject.Name,tempObject);
+                        }
+
                         continue;
                     }
-                    throw new Exception("");
+                    throw new Exception("Invalid set statement");
                 }
                 if(ParseTreeNode.IsMathEquals(expression.Unit))
                 {
@@ -269,15 +285,24 @@ namespace ValidatorNamespace
         {
             if (value.Parent != null && ParseTreeNode.IsComparison(value.Parent.Unit)) desiredType = "int";
             string type = SyntaxUnitValueToString(value.Unit);
-            if (type != "" && type != desiredType) return false;
-            if (type != "") return true;
+            if (type != "")
+            {
+                if(type != desiredType) return false;
+                foreach (var access in FindMemberAccess(value))
+                {
+                    if (!MatchesType(access, type, scopeStack)) throw new Exception($"{GetFullName(access)} is not of type {type}");
+                }
+                return true;
+            }
             string fullName = GetFullName(value);
             var desiredObject = scopeStack.GetObject(fullName);
             if (desiredObject.Type != desiredType) return false;
             if(desiredObject.GetType() == typeof(MethodObject))
             {
+                var parameters = FindParameterList(value);
+                if (parameters == null || parameters.Children.Count != ((MethodObject)desiredObject).Params.Length) throw new Exception("Invalid amount of parameters entered");
                 int index = 0;
-                foreach(var param in value.Children.First(a => a.Unit == SyntaxUnit.ParameterList).Children)
+                foreach(var param in parameters.Children)
                 {
                     type = SyntaxUnitValueToString(param.Unit);
                     if (type != "" && type != ((MethodObject)desiredObject).Params[index].Type) return false;
@@ -287,6 +312,19 @@ namespace ValidatorNamespace
                 }
             }
             return true;
+        }
+        private static ParseTreeNode FindParameterList(ParseTreeNode startNode)
+        {
+            if (startNode == null) return null;
+            if(startNode.Unit == SyntaxUnit.MethodCall)
+            {
+                return startNode.Children.FirstOrDefault(a => a.Unit == SyntaxUnit.ParameterList);
+            }
+            if(startNode.Unit == SyntaxUnit.MemberAccess)
+            {
+                return FindParameterList(startNode.Children[1]);
+            }
+            return null;
         }
         private static string SyntaxUnitValueToString(SyntaxUnit unit)
         {
@@ -470,6 +508,11 @@ namespace ValidatorNamespace
             IsPublic = isPublic;
             Params = parameters;
             IsEntryPoint = isEntryPoint;
+        }
+
+        public MethodObject GetMethodCopy()
+        {
+            return new MethodObject(Name, Type, IsPublic, Params, IsEntryPoint);
         }
     }
 }

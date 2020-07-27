@@ -11,17 +11,17 @@ namespace MyNamespace
 				thingy++;
 				return;
 			}
-			var OtherClass other = new OtherClass();
 		}
 		method int Multiply(var int numOne, var int numTwo)
 		{
-			return numOne * numTwo;
+			var Class other = new Class();
+			return numOne * numTwo * other.Integer;
 		}		
 	}
 	class OtherClass
 	{
 		var[public] int number;
-		method bool IsTrue()
+		method[public] bool IsTrue()
 		{
 			return true;
 		}

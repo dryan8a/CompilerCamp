@@ -156,14 +156,14 @@ namespace ParserNamespace
         {
             node = default;
             if (tokenStream[0].TokenType != TokenTypes.IfStatement || tokenStream[1].TokenType != TokenTypes.OpenParenthesis) return false;
-            int rightParenIndex = FindNextToken(tokenStream, 2, TokenTypes.CloseParenthesis);
+            int rightParenIndex = FindCorrespondingRightBracket(tokenStream, 2, BracketTypes.Parenthesis);//FindNextToken(tokenStream, 2, TokenTypes.CloseParenthesis);
             if (rightParenIndex < 0) return false;
             if (!BoolValueProductionParse(tokenStream.Slice(2, rightParenIndex - 2), out ParseTreeNode conditionNode) || tokenStream[rightParenIndex + 1].TokenType != TokenTypes.OpenRegion) return false;
             node = new ParseTreeNode(SyntaxUnit.IfStatement);
             var boolValueNode = new ParseTreeNode(SyntaxUnit.BoolValue);
             boolValueNode.Children.Add(conditionNode);
             node.Children.Add(boolValueNode);
-            int closeRegionIndex = FindNextToken(tokenStream, rightParenIndex + 1, TokenTypes.CloseRegion);
+            int closeRegionIndex = FindCorrespondingRightBracket(tokenStream, rightParenIndex + 1, BracketTypes.Curly);//FindNextToken(tokenStream, rightParenIndex + 1, TokenTypes.CloseRegion);
             if (closeRegionIndex < 0) return false;
             if (!BodyProductionParse(tokenStream.Slice(rightParenIndex + 2, closeRegionIndex - (rightParenIndex + 2)), out ParseTreeNode bodyNode)) return false;
             node.Children.Add(bodyNode);
@@ -174,14 +174,14 @@ namespace ParserNamespace
         {
             node = default;
             if (tokenStream[0].TokenType != TokenTypes.WhileLoop || tokenStream[1].TokenType != TokenTypes.OpenParenthesis) return false;
-            int rightParenIndex = FindNextToken(tokenStream, 2, TokenTypes.CloseParenthesis);
+            int rightParenIndex = FindCorrespondingRightBracket(tokenStream, 2, BracketTypes.Parenthesis);//FindNextToken(tokenStream, 2, TokenTypes.CloseParenthesis);
             if (rightParenIndex < 0) return false;
             if (!BoolValueProductionParse(tokenStream.Slice(2, rightParenIndex - 2), out ParseTreeNode conditionNode) || tokenStream[rightParenIndex + 1].TokenType != TokenTypes.OpenRegion) return false;
             node = new ParseTreeNode(SyntaxUnit.WhileLoop);
             var boolValueNode = new ParseTreeNode(SyntaxUnit.BoolValue);
             boolValueNode.Children.Add(conditionNode);
             node.Children.Add(boolValueNode);
-            int closeRegionIndex = FindNextToken(tokenStream, rightParenIndex + 1, TokenTypes.CloseRegion);
+            int closeRegionIndex = FindCorrespondingRightBracket(tokenStream, rightParenIndex + 1, BracketTypes.Curly);//FindNextToken(tokenStream, rightParenIndex + 1, TokenTypes.CloseRegion);
             if (closeRegionIndex < 0) return false;
             if (!BodyProductionParse(tokenStream.Slice(rightParenIndex + 2, closeRegionIndex - (rightParenIndex + 2)), out ParseTreeNode bodyNode)) return false;
             node.Children.Add(bodyNode);
@@ -545,8 +545,7 @@ namespace ParserNamespace
                 if(dotIndex < 0)
                 {
                     if (!FunctionCallProductionParse(tokenStream, out ParseTreeNode funcNode)) return false;
-                    node = new ParseTreeNode(SyntaxUnit.MemberAccess);
-                    node.Children.Add(funcNode);
+                    node = funcNode;
                     return true;
                 }
                 else
@@ -798,8 +797,7 @@ namespace ParserNamespace
                 return true;
             }
             if (!MemberAccessProductionParse(tokenStream, out ParseTreeNode tempNode)) return false;
-            node = new ParseTreeNode(SyntaxUnit.MemberAccess);
-            node.Children.Add(tempNode);
+            node = tempNode;
             return true;
         }
     }
