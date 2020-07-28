@@ -15,7 +15,8 @@ namespace Compiler
             var tokens = Tokenizer.Tokenize(program);
             ParseTreeNode head;
             if(!Parser.CompilationUnitProductionParse(tokens.ToArray().AsSpan(), out head)) throw new Exception("Parser Fail");
-            bool ValidateSucceed = Validator.Validate(head);
+            var symbolsTreeHead = Validator.Validate(head);
+            //Convert to IL here
         }
     }
 }

@@ -3,12 +3,18 @@ using System.Collections.Generic;
 using ParserNamespace;
 using TokenizerNamespace;
 using System.Linq;
+using System.Threading;
 
 namespace ValidatorNamespace
 {
     public static class Validator
     {
-        public static bool Validate(ParseTreeNode head)
+        /// <summary>
+        /// Type Checks code
+        /// </summary>
+        /// <param name="head"></param>
+        /// <returns>Symbols Tree containing the classes and their members</returns>
+        public static SymbolsTreeNode Validate(ParseTreeNode head)
         {
             Scope scope = new Scope();
             var namespaceNode = head.Children[0];
@@ -71,10 +77,10 @@ namespace ValidatorNamespace
             {
                 (ParseTreeNode currentMethod, int classIndexInNode) = toVisit.Dequeue();
                 var didSucceed = CheckTypes(currentMethod, classIndexInNode, classSymbols);
-                if (!didSucceed) return false;
+                if (!didSucceed) throw new Exception("I really need to handle my exceptions better");
             }
 
-            return true;
+            return classSymbols;
         }
 
         public static bool CheckTypes(ParseTreeNode currentMethod, int classIndexInNode, SymbolsTreeNode classSymbols)
