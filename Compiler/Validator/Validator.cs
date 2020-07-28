@@ -74,7 +74,6 @@ namespace ValidatorNamespace
                 if (!didSucceed) return false;
             }
 
-
             return true;
         }
 
