@@ -12,7 +12,7 @@ namespace Compiler
         static void Main(string[] args)
         {
             string program = File.ReadAllText("Example.dyl");
-            var tokens = Tokenizer.Tokenize(program);
+            var tokens = Tokenizer.Tokenize(program.AsSpan());
             ParseTreeNode head;
             if(!Parser.CompilationUnitProductionParse(tokens.ToArray().AsSpan(), out head)) throw new Exception("Parser Fail");
             var symbolsTreeHead = Validator.Validate(head);

@@ -72,7 +72,7 @@ namespace TokenizerNamespace
 							if (hasSeenEntrypoint) throw new Exception("Only one entrypoint allowed");
 							hasSeenEntrypoint = true;
                         }
-						if (tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith('\n'))) currentLineNumber++; 
+						if (tokenType == TokenTypes.Comment || (tokenType == TokenTypes.WhiteSpace && lexeme.StartsWith("\n"))) currentLineNumber++; 
 						BracketCount = AddToBracketCount(BracketCount, tokenType);
 						Program = Program.Slice(lexeme.Length);
 						didAdd = true;
@@ -123,7 +123,7 @@ namespace TokenizerNamespace
         static void Main(string[] args)
         {
 			string program = File.ReadAllText("LinkedList.dyl");
-			var tokens = Tokenizer.Tokenize(program);
+			var tokens = Tokenizer.Tokenize(program.AsSpan());
 			foreach(var token in tokens)
             {
 				if (token.TokenType == TokenTypes.WhiteSpace) continue;

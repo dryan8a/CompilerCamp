@@ -54,13 +54,14 @@ namespace ParserNamespace
 
             ReadOnlySpan<Token> classTokens = tokenStream.Slice(LeftBracketIndex + 1, rightBracketIndex - (LeftBracketIndex + 1) < 0 ? 0 : rightBracketIndex - (LeftBracketIndex + 1));
             RemoveUsedTokens(ref tokenStream, rightBracketIndex);
+            var body = new ParseTreeNode(SyntaxUnit.Body);
             while (classTokens.Length > 0)
             {
                 ParseTreeNode tempNode;
                 if (!VariableDeclarationProductionParse(ref classTokens, out tempNode, false) && !MethodProductionParse(ref classTokens, out tempNode)) return false;
-                node.Children.Add(tempNode);
+                body.Children.Add(tempNode);
             }
-
+            node.Children.Add(body);
             return true;
         }
         public static bool MethodProductionParse(ref ReadOnlySpan<Token> tokenStream, out ParseTreeNode node)

@@ -39,7 +39,7 @@ namespace ValidatorNamespace
                 classSymbols.Data.Add((new Object(className,"new",classIsPublic),new SymbolsTreeNode()));
                 validTypes.Add(className);
                 classSymbols.Data[^1].Children.Data = new List<(Object,SymbolsTreeNode)>();
-                foreach(var expression in classNode.Children)
+                foreach(var expression in classNode.Children.First(a => a.Unit == SyntaxUnit.Body).Children)
                 {
                     if (expression.Unit == SyntaxUnit.MethodDeclaration)
                     {

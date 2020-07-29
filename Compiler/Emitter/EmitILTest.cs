@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Reflection.Emit;
 
-namespace Emitter
+namespace EmitterNamespace
 {
     /* Things to remember:
      * ILDASM
