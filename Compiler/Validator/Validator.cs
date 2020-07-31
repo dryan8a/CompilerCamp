@@ -370,6 +370,15 @@ namespace ValidatorNamespace
             return false;
         }
 
+        public (Object Object,SymbolsTreeNode Children) GetDataEntry(string name)
+        {
+            foreach(var datum in Data)
+            {
+                if (datum.Object.Name == name) return datum;
+            }
+            return default;
+        }
+
         public List<Object> GetRelativeData(int classIndex, ParseTreeNode currentMethod)
         {
             var objects = new List<Object>();

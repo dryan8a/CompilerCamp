@@ -20,6 +20,7 @@ namespace EmitterNamespace
             var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndSave);
             var namespaceNode = compilationUnit.Children[0];
             var moduleBuilder = assemblyBuilder.DefineDynamicModule(namespaceNode.Children[0].Token.Lexeme, $"{programName}.exe");
+            var methodBodies = new Queue<(MethodBuilder, ParseTreeNode)>();
             foreach(var type in namespaceNode.Children.GetRange(1,namespaceNode.Children.Count-1))
             {
                 string typeName = type.Children.First(a => a.Unit == SyntaxUnit.Token && a.Token.TokenType == TokenTypes.Identifier).Token.Lexeme;
@@ -49,11 +50,10 @@ namespace EmitterNamespace
                             paramTypes[index] = GetTypeFromString(param.Children[0].Children[0].Token.Lexeme);
                             index++;
                         }
-                        //Add method body to queue for ILGen
+                        if (isEntryPoint) methodAttributes = MethodAttributes.Static | methodAttributes;
                         var methodBuilder = typeBuilder.DefineMethod(methodName, methodAttributes, methodType, paramTypes);
                         if(isEntryPoint) assemblyBuilder.SetEntryPoint(methodBuilder);
-                        var ilGen = methodBuilder.GetILGenerator();
-                        ilGen.Emit(OpCodes.Ret);
+                        methodBodies.Enqueue((methodBuilder,member));
                     }
                     if(member.Unit == SyntaxUnit.VariableDeclaration)
                     {
@@ -67,9 +67,23 @@ namespace EmitterNamespace
                     }
 
                 }
-                typeBuilder.CreateType();
             }
-            
+            while(methodBodies.Count > 0)
+            {
+                var (methodBuilder,methodNode) = methodBodies.Dequeue();
+                var ilGen = methodBuilder.GetILGenerator();
+                foreach(var expression in methodNode.Children.First(a => a.Unit == SyntaxUnit.Body).Children)
+                {
+
+                }
+                ilGen.Emit(OpCodes.Ret);
+            }
+
+            foreach(var type in moduleBuilder.GetTypes())
+            {
+                ((TypeBuilder)type).CreateType();
+            }
+
             assemblyBuilder.Save($"{programName}.exe");
         }
 
