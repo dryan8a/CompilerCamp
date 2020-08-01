@@ -6,6 +6,7 @@ namespace MyNamespace
 		method[public] entrypoint void main()
 		{
 			var int thingy = 5;
+			return;
 		}
 		method int Multiply(var int numOne, var int numTwo)
 		{

@@ -72,11 +72,30 @@ namespace EmitterNamespace
             {
                 var (methodBuilder,methodNode) = methodBodies.Dequeue();
                 var ilGen = methodBuilder.GetILGenerator();
+                var variables = new Dictionary<string, int>();
+                byte leastAvailableVariableNum = 0;
                 foreach(var expression in methodNode.Children.First(a => a.Unit == SyntaxUnit.Body).Children)
                 {
-
+                    if (expression.Unit == SyntaxUnit.VariableInitialization)
+                    {
+                        var valueNode = expression.Children[expression.Children.Count - 1];
+                        if(valueNode.Unit == SyntaxUnit.IntValue && valueNode.Children[0].Unit == SyntaxUnit.Token && valueNode.Children[0].Token.TokenType == TokenTypes.IntLiteral)
+                        {
+                            ilGen.Emit(OpCodes.Ldc_I4, int.Parse(valueNode.Children[0].Token.Lexeme));
+                            ilGen.Emit(OpCodes.Stloc, leastAvailableVariableNum);
+                            leastAvailableVariableNum++;
+                            continue;
+                        }
+                        if(valueNode.Unit == SyntaxUnit.Token && valueNode.Token.TokenType == TokenTypes.Null)
+                        {
+                            ilGen.Emit(OpCodes.Ldc_I4_0);
+                            ilGen.Emit(OpCodes.Stloc, leastAvailableVariableNum);
+                            leastAvailableVariableNum++;
+                            continue;
+                        }
+                        //Use some of the functions in Validator to get all of the variable gets and method calls then use those to start emitting math and stuff
+                    }
                 }
-                ilGen.Emit(OpCodes.Ret);
             }
 
             foreach(var type in moduleBuilder.GetTypes())
